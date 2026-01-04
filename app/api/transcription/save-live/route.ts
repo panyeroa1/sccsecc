@@ -38,51 +38,21 @@ export async function POST(request: Request) {
       return new NextResponse('Supabase not configured', { status: 503 });
     }
 
-    // Check for existing transcript, most recent first
-    const { data: existingRows, error: fetchError } = await supabase
-      .from('transcript_segments')
-      .select('id, source_text')
-      .eq('meeting_id', meetingId)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // ALWAYS insert a new segment row.
+    // Benefits:
+    // 1. Scalability: No race conditions on appending to a single large text field.
+    // 2. Metadata: Each segment preserves its specific speaker and timestamp.
+    // 3. Search: Easier to query segments by time or speaker.
+    const { error: insertError } = await supabase.from('transcript_segments').insert({
+      meeting_id: meetingId,
+      source_text: sourceText,
+      source_lang: sourceLang ?? null,
+      speaker_id: speakerId ?? null,
+    });
 
-    if (fetchError) {
-      console.error('Fetch existing transcript failed', fetchError);
-      return new NextResponse('Database error', { status: 500 });
-    }
-
-    const existing = existingRows && existingRows.length > 0 ? existingRows[0] : null;
-
-    if (existing) {
-      // Append to the most recent existing row
-      const updatedText = existing.source_text + '\n' + sourceText;
-      const { error: updateError } = await supabase
-        .from('transcript_segments')
-        .update({
-          source_text: updatedText,
-          speaker_id: speakerId ?? null,
-          source_lang: sourceLang ?? null,
-          created_at: new Date().toISOString(), // Keep it "recent"
-        })
-        .eq('id', existing.id);
-
-      if (updateError) {
-        console.error('Update transcript segment failed', updateError);
-        return new NextResponse('Failed to update', { status: 500 });
-      }
-    } else {
-      // Insert new row if none exists
-      const { error: insertError } = await supabase.from('transcript_segments').insert({
-        meeting_id: meetingId,
-        source_text: sourceText,
-        source_lang: sourceLang ?? null,
-        speaker_id: speakerId ?? null,
-      });
-
-      if (insertError) {
-        console.error('Insert transcript segment failed', insertError);
-        return new NextResponse('Failed to save', { status: 500 });
-      }
+    if (insertError) {
+      console.error('Insert transcript segment failed', insertError);
+      return new NextResponse('Failed to save segment', { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
