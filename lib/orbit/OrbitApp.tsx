@@ -508,7 +508,12 @@ export function OrbitApp() {
               {sourceDisplayText}
             </p>
           )}
-          {!sourceDisplayText && mode === 'speaking' && (
+          {translatedStreamText && (
+            <p className="text-[24px] font-semibold tracking-tight text-emerald-400 drop-shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-300 px-6 py-2 mt-2 rounded-xl bg-black/60 backdrop-blur-md">
+              {translatedStreamText}
+            </p>
+          )}
+          {!sourceDisplayText && !translatedStreamText && mode === 'speaking' && (
              <p className="text-[16px] text-white/50 animate-pulse font-medium">Listening...</p>
           )}
 
