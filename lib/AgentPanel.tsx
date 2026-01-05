@@ -4,14 +4,16 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styles from '@/styles/Eburon.module.css';
 import { supabase } from '@/lib/orbit/services/supabaseClient';
 import { streamTranslation, translateWithOllama } from '@/lib/orbit/services/geminiService';
-import { LANGUAGES, Language } from '@/lib/orbit/types';
-import { Volume2, Mic, MicOff, StopCircle, ChevronDown } from 'lucide-react';
+import { LANGUAGES, Language, RoomState } from '@/lib/orbit/types';
+import { Volume2, Mic, MicOff, StopCircle, ChevronDown, Lock } from 'lucide-react';
 
 interface AgentPanelProps {
   meetingId?: string;
   onSpeakingStateChange?: (isSpeaking: boolean) => void;
   isTranscriptionEnabled: boolean;
   onToggleTranscription: () => void;
+  roomState?: RoomState;
+  userId?: string;
 }
 
 interface TranslationLog {
@@ -21,8 +23,13 @@ interface TranslationLog {
   lang: string;
 }
 
-export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEnabled, onToggleTranscription }: AgentPanelProps) {
+export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEnabled, onToggleTranscription, roomState, userId }: AgentPanelProps) {
   const [targetLang, setTargetLang] = useState<Language>(LANGUAGES.find(l => l.code === 'es-ES') || LANGUAGES[1]);
+  
+  const activeSpeakerId = roomState?.activeSpeaker?.userId;
+  const isLocked = activeSpeakerId && activeSpeakerId !== userId;
+  const isMeSpeaking = activeSpeakerId && activeSpeakerId === userId && isTranscriptionEnabled;
+
   const [isAgentActive, setIsAgentActive] = useState(false);
   const [logs, setLogs] = useState<TranslationLog[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -204,10 +211,12 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
         <div className={styles.agentControls}>
           <button
             onClick={onToggleTranscription}
-            className={`${styles.agentControlButton} ${isTranscriptionEnabled ? styles.agentControlButtonActiveSpeak : ''}`}
+            disabled={!!isLocked}
+            className={`${styles.agentControlButton} ${isMeSpeaking ? styles.agentControlButtonActiveSpeak : ''} ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={isLocked ? 'Someone else is speaking' : 'Transcription'}
           >
-            {isTranscriptionEnabled ? <Mic size={20} /> : <MicOff size={20} />}
-            <span>Speak</span>
+            {isLocked ? <Lock size={20} /> : (isMeSpeaking ? <Mic size={20} /> : <MicOff size={20} />)}
+            <span>{isLocked ? 'Locked' : 'Speak'}</span>
           </button>
 
           <button

@@ -167,6 +167,8 @@ const CloseIcon = () => (
   </svg>
 );
 
+import { RoomState } from '@/lib/orbit/types';
+
 interface EburonControlBarProps {
   onChatToggle?: () => void;
   onParticipantsToggle?: () => void;
@@ -185,6 +187,8 @@ interface EburonControlBarProps {
   isTranscriptionOpen?: boolean;
   isAppMuted?: boolean;
   onAppMuteToggle?: (muted: boolean | ((prev: boolean) => boolean)) => void;
+  roomState?: RoomState;
+  userId?: string;
 }
 
 export function EburonControlBar({
@@ -205,6 +209,8 @@ export function EburonControlBar({
   isTranscriptionOpen,
   isAppMuted = false,
   onAppMuteToggle,
+  roomState,
+  userId,
 }: EburonControlBarProps) {
   const room = useRoomContext();
   const { localParticipant } = useLocalParticipant();
@@ -695,9 +701,10 @@ export function EburonControlBar({
 
           {onTranscriptionToggle && (
             <button
-              className={`${styles.controlButton} ${isTranscriptionOpen ? styles.controlButtonActive : ''}`}
+              className={`${styles.controlButton} ${isTranscriptionOpen ? styles.controlButtonActive : ''} ${roomState?.activeSpeaker?.userId && roomState.activeSpeaker.userId !== userId ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={onTranscriptionToggle}
-              title="Transcription"
+              disabled={!!(roomState?.activeSpeaker?.userId && roomState.activeSpeaker.userId !== userId)}
+              title={roomState?.activeSpeaker?.userId && roomState.activeSpeaker.userId !== userId ? 'Someone else is speaking' : 'Transcription'}
               aria-pressed={isTranscriptionOpen}
             >
               <CaptionsIcon />

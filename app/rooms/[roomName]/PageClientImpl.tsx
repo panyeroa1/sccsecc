@@ -4,11 +4,14 @@ import React from 'react';
 import { decodePassphrase } from '@/lib/client-utils';
 import { DebugMode } from '@/lib/Debug';
 import { KeyboardShortcuts } from '@/lib/KeyboardShortcuts';
+import toast from 'react-hot-toast';
 import { supabase } from '@/lib/orbit/services/supabaseClient';
 import { useAuth } from '@/components/AuthProvider';
 import { RecordingIndicator } from '@/lib/RecordingIndicator';
 import { ConnectionDetails } from '@/lib/types';
 import { EburonControlBar } from '@/lib/EburonControlBar';
+import { subscribeToRoom, tryAcquireSpeaker, releaseSpeaker } from '@/lib/orbit/services/roomStateService';
+import { RoomState } from '@/lib/orbit/types';
 
 
 import { ChatPanel } from '@/lib/ChatPanel';
@@ -439,7 +442,15 @@ function VideoConferenceComponent(props: {
   const [isAppMuted, setIsAppMuted] = React.useState(false);
 
   const [isTranscriptionEnabled, setIsTranscriptionEnabled] = React.useState(false);
+  const [roomState, setRoomState] = React.useState<RoomState>({ activeSpeaker: null, raiseHandQueue: [], lockVersion: 0 });
 
+  React.useEffect(() => {
+    if (!roomName) return;
+    const unsub = subscribeToRoom(roomName, (state) => {
+      setRoomState(state);
+    });
+    return unsub;
+  }, [roomName]);
 
   const layoutContext = useCreateLayoutContext();
 
@@ -736,7 +747,9 @@ function VideoConferenceComponent(props: {
             meetingId={roomName} 
             onSpeakingStateChange={handleAgentSpeakingChange}
             isTranscriptionEnabled={isTranscriptionEnabled}
-            onToggleTranscription={() => setIsTranscriptionEnabled(prev => !prev)}
+            onToggleTranscription={handleTranscriptionToggle}
+            roomState={roomState}
+            userId={user?.id}
           />
         );
       case 'chat':
@@ -778,6 +791,24 @@ function VideoConferenceComponent(props: {
         console.error('Failed to save transcript', err);
     }
   }, [roomName, room.localParticipant.identity, user?.id]);
+
+  const handleTranscriptionToggle = React.useCallback(async () => {
+    if (!roomName || !user?.id) return;
+
+    if (!isTranscriptionEnabled) {
+      // Attempt to acquire lock
+      const success = await tryAcquireSpeaker(roomName, user.id);
+      if (success) {
+        setIsTranscriptionEnabled(true);
+      } else {
+        toast.error('Someone else is currently speaking' as any);
+      }
+    } else {
+      // Release lock
+      await releaseSpeaker(roomName, user.id);
+      setIsTranscriptionEnabled(false);
+    }
+  }, [isTranscriptionEnabled, roomName, user?.id]);
 
   return (
     <div
@@ -830,7 +861,7 @@ function VideoConferenceComponent(props: {
             onSettingsToggle={() => handleSidebarPanelToggle('settings')}
 
 
-            onTranscriptionToggle={() => setIsTranscriptionEnabled((prev) => !prev)}
+            onTranscriptionToggle={handleTranscriptionToggle}
             isParticipantsOpen={!sidebarCollapsed && activeSidebarPanel === 'participants'}
             isAgentOpen={!sidebarCollapsed && activeSidebarPanel === 'agent'}
             isChatOpen={!sidebarCollapsed && activeSidebarPanel === 'chat'}
@@ -840,6 +871,8 @@ function VideoConferenceComponent(props: {
             isTranscriptionOpen={isTranscriptionEnabled}
             isAppMuted={isAppMuted}
             onAppMuteToggle={setIsAppMuted}
+            roomState={roomState}
+            userId={user?.id}
             audioCaptureOptions={audioCaptureOptions}
           />
           
