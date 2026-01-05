@@ -93,10 +93,11 @@ export function OrbitIntegrations() {
       {localMicTrack && (
         <div className={styles.visualizerContainer}>
           <BarVisualizer 
-             state={{ track: localMicTrack.publication?.track, trackReference: localMicTrack }}
+             state={undefined} 
+             trackRef={localMicTrack}
              barCount={30}
-             options={{ color: '#22c55e', height: 40 }}
-             style={{ width: '100%', height: '100%' }}
+             options={{ height: 40 }}
+             style={{ width: '100%', height: '100%', color: '#22c55e' }}
           />
         </div>
       )}
@@ -112,10 +113,9 @@ export function OrbitIntegrations() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span className={styles.sidebarCardLabel}>{tool.title}</span>
                   {tool.status && (
-                    <span className={styles.integrationStatus} style={{ 
-                      background: tool.status === 'Active' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                      color: tool.status === 'Active' ? '#4ade80' : 'rgba(255, 255, 255, 0.6)',
-                    }}>
+                    <span 
+                      className={`${styles.integrationStatus} ${styles[`status${tool.status}`] || styles.statusActive}`}
+                    >
                       {tool.status}
                     </span>
                   )}

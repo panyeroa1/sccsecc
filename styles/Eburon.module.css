@@ -544,6 +544,27 @@
   font-weight: 600;
 }
 
+.statusActive {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.statusBeta {
+  background: rgba(250, 204, 21, 0.2);
+  color: #facc15;
+}
+
+.statusNew {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.statusPro {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+}
+
+
 .chatPanelCollapsed {
   width: 0;
   border-left: none;
