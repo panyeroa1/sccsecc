@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 type TtsRequestBody = {
   text: string;
   voiceId?: string;
-  provider?: 'orbit-ai' | 'orbit-ai-voice' | 'orbit-ai-agent';
+  provider?: 'orbit-ai' | 'orbit-ai-voice' | 'orbit-ai-agent' | 'cartesia';
 };
 
 function pcm16leToWav(pcm: Buffer, sampleRate = 24000, channels = 1): Buffer {
@@ -38,6 +38,45 @@ export async function POST(request: Request) {
 
     if (!text) {
       return new NextResponse('Missing text', { status: 400 });
+    }
+
+    if (provider === 'cartesia') {
+      const apiKey = process.env.CARTESIA_API_KEY;
+      if (!apiKey) {
+        return new NextResponse('Cartesia API key not configured', { status: 503 });
+      }
+
+      const response = await fetch("https://api.cartesia.ai/tts/bytes", {
+         method: "POST",
+         headers: {
+           "Cartesia-Version": "2025-04-16",
+           "X-API-Key": apiKey,
+           "Content-Type": "application/json"
+         },
+         body: JSON.stringify({
+            model_id: "sonic-3",
+            transcript: text,
+            voice: {
+              mode: "id",
+              id: requestedVoiceId || "9c7e6604-52c6-424a-9f9f-2c4ad89f3bb9"
+            },
+            output_format: {
+              container: "wav",
+              encoding: "pcm_f32le",
+              sample_rate: 44100
+            },
+            speed: "normal",
+            generation_config: { speed: 1, volume: 1 }
+         })
+       });
+
+       if (!response.ok) {
+           const err = await response.text();
+           console.error("Cartesia TTS Error", err);
+           return new NextResponse(err, { status: 500 });
+       }
+       const buffer = await response.arrayBuffer();
+       return new NextResponse(buffer, { headers: { "Content-Type": "audio/wav" } });
     }
 
     if (provider === 'orbit-ai') {

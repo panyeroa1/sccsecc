@@ -5,7 +5,7 @@ import styles from '@/styles/Eburon.module.css';
 import { supabase } from '@/lib/orbit/services/supabaseClient';
 import { streamTranslation } from '@/lib/orbit/services/geminiService';
 import { LANGUAGES, Language } from '@/lib/orbit/types';
-import { Volume2, Loader2, Mic, MicOff, Sparkles, StopCircle } from 'lucide-react';
+import { Volume2, Loader2, Mic, MicOff, Sparkles, StopCircle, ChevronDown } from 'lucide-react';
 
 interface AgentPanelProps {
   meetingId?: string;
@@ -27,6 +27,9 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
   const [logs, setLogs] = useState<TranslationLog[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
+  
+  // TTS Provider State
+  const [ttsProvider, setTtsProvider] = useState<'gemini' | 'cartesia'>('gemini');
 
   // Notify parent of speaking state
   useEffect(() => {
@@ -103,7 +106,9 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
           // Next
           processQueue();
         },
-        segment.source_lang || 'auto'
+        segment.source_lang || 'auto',
+        0, // retryCount
+        ttsProvider // Pass selected provider
       );
     } catch (e) {
       console.error("Agent translation error:", e);
@@ -111,7 +116,7 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
       setIsSpeaking(false);
       processQueue();
     }
-  }, [isAgentActive, targetLang, ensureAudioContext]);
+  }, [isAgentActive, targetLang, ensureAudioContext, ttsProvider]);
 
   // Trigger queue processing when active or new items added
   useEffect(() => {
@@ -173,7 +178,7 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex flex-col flex-1 min-h-0">
         {/* Main Controls */}
         <div className="flex flex-col gap-3 p-4 border-b border-white/5">
           <button
@@ -203,6 +208,23 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
             {isAgentActive ? <Sparkles size={20} className="mr-3" /> : <StopCircle size={20} className="mr-3" />}
             <span className="text-[10px] uppercase font-bold tracking-wider">Translate</span>
           </button>
+          
+          {/* TTS Provider Dropdown */}
+          <div className="relative group mt-1">
+             <select 
+               aria-label="TTS Provider"
+               className="w-full appearance-none bg-[#131b2c] border border-slate-700/50 group-hover:border-slate-600 text-slate-200 text-xs font-medium rounded-lg pl-3 pr-8 py-2.5 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all cursor-pointer shadow-sm"
+               value={ttsProvider}
+               onChange={(e) => setTtsProvider(e.target.value as any)}
+             >
+               <option value="gemini" className="bg-[#131b2c]">Agent</option>
+               <option value="cartesia" className="bg-[#131b2c]">Orbit</option>
+             </select>
+             {/* Custom Chevron */}
+             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-slate-400 transition-colors">
+                <ChevronDown size={14} />
+             </div>
+          </div>
         </div>
 
         {/* Target Language */}
@@ -226,7 +248,7 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
              </select>
              {/* Custom Chevron */}
              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-slate-400 transition-colors">
-                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1L5 5L9 1"/></svg>
+                <ChevronDown size={14} />
              </div>
           </div>
         </div>

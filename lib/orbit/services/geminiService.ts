@@ -42,6 +42,25 @@ async function decodeAudioData(
   return buffer;
 }
 
+async function playCartesiaTTS(text: string, ctx: AudioContext) {
+  try {
+     const res = await fetch('/api/tts', {
+       method: 'POST',
+       body: JSON.stringify({ text, provider: 'cartesia' }),
+       headers: { 'Content-Type': 'application/json' }
+     });
+     if (!res.ok) throw new Error(await res.text());
+     const buf = await res.arrayBuffer();
+     const audioBuf = await ctx.decodeAudioData(buf);
+     const source = ctx.createBufferSource();
+     source.buffer = audioBuf;
+     source.connect(ctx.destination);
+     source.start();
+  } catch (e) {
+     console.error("Cartesia Playback Error", e);
+  }
+}
+
 /**
  * Live Translation Stream with Retry Logic and Auto-Detection.
  */
@@ -52,8 +71,10 @@ export async function streamTranslation(
   onAudioData: (data: Uint8Array) => void,
   onTranscript: (text: string) => void,
   onEnd: (finalText: string) => void,
+
   sourceLangCode: string = 'auto',
-  retryCount: number = 0
+  retryCount: number = 0,
+  ttsProvider: 'gemini' | 'cartesia' = 'gemini'
 ) {
   let nextStartTime = 0;
   let fullTranslation = "";
@@ -63,7 +84,7 @@ export async function streamTranslation(
     const sessionPromise = ai.live.connect({
       model: 'models/gemini-2.0-flash-exp',
       config: {
-        responseModalities: [Modality.AUDIO],
+        responseModalities: [ttsProvider === 'cartesia' ? Modality.TEXT : Modality.AUDIO],
         outputAudioTranscription: {}, 
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Orus' } }
@@ -113,6 +134,11 @@ export async function streamTranslation(
           }
 
           if (message.serverContent?.turnComplete) {
+            
+            if (ttsProvider === 'cartesia' && fullTranslation.trim()) {
+                await playCartesiaTTS(fullTranslation, audioCtx);
+            }
+
             const waitTime = Math.max(0, (nextStartTime - audioCtx.currentTime) * 1000);
             setTimeout(() => onEnd(fullTranslation), waitTime + 100);
           }
@@ -127,7 +153,8 @@ export async function streamTranslation(
             const delay = RETRY_DELAY * Math.pow(2, retryCount);
             console.log(`Retrying in ${delay}ms...`);
             setTimeout(() => {
-              streamTranslation(sourceText, targetLangName, audioCtx, onAudioData, onTranscript, onEnd, sourceLangCode, retryCount + 1);
+            setTimeout(() => {
+              streamTranslation(sourceText, targetLangName, audioCtx, onAudioData, onTranscript, onEnd, sourceLangCode, retryCount + 1, ttsProvider);
             }, delay);
           } else {
             onEnd(fullTranslation);
