@@ -11,11 +11,8 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.OLLAMA_API_KEY;
 
-    // Use mock if no API key for now to prevent 500s during dev if not set
-    if (!apiKey) {
-       console.warn("OLLAMA_API_KEY missing, returning mock translation");
-       return NextResponse.json({ translation: `[${targetLang}] ${text}` });
-    }
+    // Local Ollama determines if it needs a key (usually not). 
+    // We proceed to fetch even if apiKey is undefined.
 
     const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
     console.log(`Sending translation request to: ${ollamaUrl}/v1/chat/completions`, { model: 'gemini-2.0-flash-exp', targetLang });

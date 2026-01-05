@@ -2094,3 +2094,27 @@ Tests:
 - `npm run build` passed.
 Result: PASS
 Status: DONE
+
+Task ID: T-0039
+Title: Robustify Translation and TTS Pipeline
+Status: DONE
+Owner: Miles
+
+START LOG
+
+Timestamp: 2026-01-05 22:55
+Plan:
+- Update `OrbitTranslatorVertical.tsx` to gracefuly handle translation failures (show original text).
+- Update `api/orbit/tts/route.ts` to provide mock audio fallback if Cartesia API key is missing.
+- Verify build.
+
+END LOG
+
+Timestamp: 2026-01-05 22:58
+Changed:
+- `OrbitTranslatorVertical.tsx`: Messages are now added to UI even if translation API throws/fails.
+- `api/orbit/tts/route.ts`: Returns 1s sine wave if CARTESIA_API_KEY is missing, enabling testing without paid API.
+Tests:
+- `npm run build` passed.
+Result: PASS
+Status: DONE

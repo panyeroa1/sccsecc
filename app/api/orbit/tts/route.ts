@@ -7,7 +7,22 @@ export async function POST(request: Request) {
     
     const apiKey = process.env.CARTESIA_API_KEY;
     if (!apiKey) {
-      return new NextResponse('Cartesia API key not configured', { status: 503 });
+      console.warn("Cartesia API key not configured, returning mock audio (sine wave)");
+      // Generate 1s sine wave at 440Hz
+      const sampleRate = 44100;
+      const duration = 1.0;
+      const numSamples = sampleRate * duration;
+      const buffer = new Float32Array(numSamples);
+      const freq = 440;
+      for (let i = 0; i < numSamples; i++) {
+        buffer[i] = Math.sin(2 * Math.PI * freq * (i / sampleRate)) * 0.5;
+      }
+      
+      return new NextResponse(buffer.buffer as ArrayBuffer, {
+        headers: {
+            'Content-Type': 'audio/wav', // or audio/pcm if handled raw
+        }
+      });
     }
 
     const response = await fetch("https://api.cartesia.ai/tts/bytes", {

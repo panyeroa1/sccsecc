@@ -155,18 +155,25 @@ export function OrbitTranslatorVertical({ roomCode, userId, onLiveTextChange }: 
     try {
       // 1) Translate
       const targetLang = selectedLanguageRef.current.code;
-
-      const tRes = await fetch('/api/orbit/translate', {
-        method: 'POST',
-        body: JSON.stringify({ text: item.text, targetLang }),
-      });
-      const tData = await tRes.json();
-      const translated = tData.translation || item.text;
+      let translated = item.text;
+      
+      try {
+          const tRes = await fetch('/api/orbit/translate', {
+            method: 'POST',
+            body: JSON.stringify({ text: item.text, targetLang }),
+          });
+          if (tRes.ok) {
+             const tData = await tRes.json();
+             translated = tData.translation || item.text;
+          }
+      } catch (translateError) {
+          console.warn('Translation API failed, using original text', translateError);
+      }
 
       setMessages(prev => [...prev, {
         id: item.id || Math.random().toString(),
         text: item.text,
-        translation: translated,
+        translation: translated !== item.text ? translated : undefined,
         speakerId: item.speakerId || 'remote',
         isMe: false,
         timestamp: new Date()
@@ -174,14 +181,18 @@ export function OrbitTranslatorVertical({ roomCode, userId, onLiveTextChange }: 
 
       // 2) TTS
       if (isListeningRef.current) {
-        const ttsRes = await fetch('/api/orbit/tts', {
-          method: 'POST',
-          body: JSON.stringify({ text: translated }),
-        });
-        const arrayBuffer = await ttsRes.arrayBuffer();
-        if (arrayBuffer.byteLength > 0) {
-          audioQueueRef.current.push(arrayBuffer);
-          playNextAudio();
+        try {
+            const ttsRes = await fetch('/api/orbit/tts', {
+              method: 'POST',
+              body: JSON.stringify({ text: translated }),
+            });
+            const arrayBuffer = await ttsRes.arrayBuffer();
+            if (arrayBuffer.byteLength > 0) {
+              audioQueueRef.current.push(arrayBuffer);
+              playNextAudio();
+            }
+        } catch (ttsError) {
+            console.warn('TTS API failed', ttsError);
         }
       }
     } catch (e) {
