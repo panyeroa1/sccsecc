@@ -24,6 +24,7 @@ import {
   useCreateLayoutContext,
   useLayoutContext,
   usePinnedTracks,
+  usePersistentUserChoices,
   isTrackReference,
   RoomAudioRenderer,
   ConnectionStateToast,
@@ -284,6 +285,124 @@ function SettingsPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+export function PageClientImpl(props: {
+  roomName: string;
+  region?: string;
+  hq: boolean;
+  codec: VideoCodec;
+}) {
+  const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails>();
+  const [preJoinChoices, setPreJoinChoices] = React.useState<LocalUserChoices>();
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  const {
+    userChoices,
+    saveAudioInputEnabled,
+    saveVideoInputEnabled,
+    saveAudioInputDeviceId,
+    saveVideoInputDeviceId,
+    saveUsername,
+  } = usePersistentUserChoices();
+
+  const preJoinDefaults = React.useMemo(
+    () => ({
+      audioEnabled: userChoices.audioEnabled,
+      videoEnabled: userChoices.videoEnabled,
+      audioDeviceId: userChoices.audioDeviceId,
+      videoDeviceId: userChoices.videoDeviceId,
+      username: userChoices.username,
+    }),
+    [userChoices],
+  );
+
+  const handlePreJoinSubmit = React.useCallback(
+    (values: LocalUserChoices) => {
+      saveAudioInputEnabled(values.audioEnabled);
+      saveVideoInputEnabled(values.videoEnabled);
+      saveAudioInputDeviceId(values.audioDeviceId);
+      saveVideoInputDeviceId(values.videoDeviceId);
+      saveUsername(values.username);
+      setPreJoinChoices(values);
+    },
+    [
+      saveAudioInputEnabled,
+      saveAudioInputDeviceId,
+      saveVideoInputEnabled,
+      saveVideoInputDeviceId,
+      saveUsername,
+    ],
+  );
+
+  const handlePreJoinError = React.useCallback((error: unknown) => {
+    console.error('Pre-join error', error);
+  }, []);
+
+  React.useEffect(() => {
+    if (!preJoinChoices) {
+      return;
+    }
+    let isMounted = true;
+    const loadConnectionDetails = async () => {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams({
+          roomName: props.roomName,
+          participantName: preJoinChoices.username || 'Guest',
+        });
+        if (props.region) {
+          params.set('region', props.region);
+        }
+        const response = await fetch(`${CONN_DETAILS_ENDPOINT}?${params.toString()}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to fetch connection details');
+        }
+        const data = (await response.json()) as ConnectionDetails;
+        if (isMounted) {
+          setConnectionDetails(data);
+        }
+      } catch (error) {
+        console.error('Connection details error', error);
+        if (isMounted) {
+          setConnectionDetails(undefined);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    loadConnectionDetails();
+    return () => {
+      isMounted = false;
+    };
+  }, [preJoinChoices, props.roomName, props.region]);
+
+  if (isLoading) {
+    return <div className={roomStyles.videoPlaceholder}>Loading...</div>;
+  }
+
+  return (
+    <main data-lk-theme="default" className="lk-room-container">
+      {connectionDetails === undefined || preJoinChoices === undefined ? (
+        <div className={roomStyles.preJoinContainer}>
+          <PreJoin
+            defaults={preJoinDefaults}
+            onSubmit={handlePreJoinSubmit}
+            onError={handlePreJoinError}
+          />
+        </div>
+      ) : (
+        <VideoConferenceComponent
+          connectionDetails={connectionDetails}
+          userChoices={preJoinChoices}
+          options={{ codec: props.codec, hq: props.hq }}
+        />
+      )}
+    </main>
   );
 }
 
