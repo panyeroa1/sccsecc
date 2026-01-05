@@ -75,7 +75,7 @@ const ChevronLeftIcon = () => (
 
 type SidebarPanel = 'participants' | 'agent' | 'chat' | 'settings';
 
-function VideoGrid({ allowedParticipantIds }: { allowedParticipantIds: Set<string> }) {
+function VideoGrid({ allowedParticipantIds, isGridView }: { allowedParticipantIds: Set<string>, isGridView: boolean }) {
   const layoutContext = useLayoutContext();
   const tracks = useTracks(
     [
@@ -135,7 +135,12 @@ function VideoGrid({ allowedParticipantIds }: { allowedParticipantIds: Set<strin
     if (track.participant?.isLocal) {
       return true;
     }
+    // If it's a allowed participant
     if (track.participant && allowedParticipantIds.has(track.participant.identity)) {
+      return true;
+    }
+    // If Grid view is enabled, show all participants
+    if (isGridView && track.participant) {
       return true;
     }
     if (focusTrackSid && isTrackReference(track) && track.publication.trackSid === focusTrackSid) {
@@ -160,7 +165,7 @@ function VideoGrid({ allowedParticipantIds }: { allowedParticipantIds: Set<strin
     );
   }
 
-  return !activeFocusTrack ? (
+  return (!activeFocusTrack || isGridView) ? (
     <GridLayout tracks={filteredTracks} style={{ height: '100%' }}>
       <ParticipantTile />
     </GridLayout>
@@ -466,6 +471,7 @@ function VideoConferenceComponent(props: {
   const [activeSidebarPanel, setActiveSidebarPanel] = React.useState<SidebarPanel>('participants');
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
   const [voiceFocusEnabled, setVoiceFocusEnabled] = React.useState(true);
+  const [isGridView, setIsGridView] = React.useState(false);
   const [vadEnabled, setVadEnabled] = React.useState(true);
   const [noiseSuppressionEnabled, setNoiseSuppressionEnabled] = React.useState(true);
   const [echoCancellationEnabled, setEchoCancellationEnabled] = React.useState(true);
@@ -894,7 +900,7 @@ function VideoConferenceComponent(props: {
           
           {/* Main video grid */}
           <div className={roomStyles.videoGridContainer}>
-            <VideoGrid allowedParticipantIds={admittedIds} />
+            <VideoGrid allowedParticipantIds={admittedIds} isGridView={isGridView} />
           </div>
           
           {/* Right Sidebar */}
@@ -932,6 +938,8 @@ function VideoConferenceComponent(props: {
             onChatToggle={() => handleSidebarPanelToggle('chat')}
             onSettingsToggle={() => handleSidebarPanelToggle('settings')}
 
+            onGridToggle={() => setIsGridView(!isGridView)}
+            isGridView={isGridView}
 
             onTranscriptionToggle={handleTranscriptionToggle}
             isParticipantsOpen={!sidebarCollapsed && activeSidebarPanel === 'participants'}

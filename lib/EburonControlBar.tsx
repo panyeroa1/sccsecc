@@ -151,6 +151,21 @@ const ParticipantsIcon = () => (
   </svg>
 );
 
+const GridViewIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+
+const ChevronLeftIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
 const MenuIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="3" y1="12" x2="21" y2="12" />
@@ -186,6 +201,8 @@ interface EburonControlBarProps {
 
 
   isTranscriptionOpen?: boolean;
+  isGridView?: boolean;
+  onGridToggle?: () => void;
   isAppMuted?: boolean;
   onAppMuteToggle?: (muted: boolean | ((prev: boolean) => boolean)) => void;
   roomState?: RoomState;
@@ -208,6 +225,8 @@ export function EburonControlBar({
 
 
   isTranscriptionOpen,
+  isGridView,
+  onGridToggle,
   isAppMuted = false,
   onAppMuteToggle,
   roomState,
@@ -776,6 +795,17 @@ export function EburonControlBar({
           >
             <RaiseHandIcon />
           </button>
+
+          {/* Grid View Toggle */}
+          {onGridToggle && (
+            <button
+              className={`${styles.controlButton} ${isGridView ? styles.controlButtonActive : ''}`}
+              onClick={onGridToggle}
+              title={isGridView ? "Focused View" : "Grid View"}
+            >
+              <GridViewIcon />
+            </button>
+          )}
 
           {onChatToggle && (
             <button
