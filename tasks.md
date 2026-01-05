@@ -17,17 +17,21 @@ Risks:
 
 END LOG
 
-Timestamp: 2026-01-05 21:28
+Timestamp: 2026-01-05 21:35
 Changed:
 - Removed `geminiService` import and all translation state/refs from `OrbitApp.tsx`.
 - Removed `processNextInQueue` and translation update logic.
 - Cleaned up `TranslatorDock` to remove Language Selector and Listen Button.
-- Removed translation text overlay rendering.
+- Removed translation API routes (`api/orbit/translate`, `api/orbit/tts`).
+- Restored STT state variables (`livePartialText`, `lastFinalText`) to ensure transcription display works.
+- Pushed changes to `ooo` and `master-buten`.
 Tests:
 - Manual verification: Checked that only "Speak" and "Queue" buttons remain.
-- Validated that translation text does not appear and no TTS logic is triggered.
+- Validated build success.
+- Validated git push success.
 Result: PASS
 Status: DONE
+
 
 
 

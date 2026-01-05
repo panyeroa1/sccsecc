@@ -173,6 +173,7 @@ export function OrbitApp() {
            if (!SpeechRecognition) throw new Error("Speech recognition not supported.");
 
            const recognition = new SpeechRecognition();
+           console.log("OrbitApp: Starting recognition", { lang: selectedLanguageRef.current.code });
            recognition.continuous = true;
            recognition.interimResults = true;
            recognition.lang = selectedLanguageRef.current.code === 'auto' ? navigator.language : selectedLanguageRef.current.code; 
@@ -187,6 +188,7 @@ export function OrbitApp() {
 
            recognition.onresult = (event: any) => {
              if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+             console.log("OrbitApp: recognition result", event.results.length);
              
              let currentFull = '';
              for (let i = 0; i < event.results.length; ++i) {
