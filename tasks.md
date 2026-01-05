@@ -2627,3 +2627,57 @@ Test result:
 
 Known limitations or follow-up tasks:
 - `setSinkId` is not supported in all browsers (e.g. Safari), will gracefully fallback to default output.
+
+Task ID: T-0038
+Title: Fix Next.js Runtime TypeError `routeModule.prepare is not a function`
+Status: DONE
+Owner: Miles
+Related repo or service: livekit-meet
+
+START LOG
+
+Timestamp: 2026-01-06 05:16
+Current behavior or state:
+- Runtime TypeError: routeModule.prepare is not a function.
+- Next.js version discrepancy (15.2.8 in node_modules, 15.5.6 in ESLint config).
+
+Plan and scope for this task:
+- Upgrade `next` package to 15.5.6 to match ESLint config and user environment.
+- Synchronize dependencies via `pnpm install`.
+- Verify with linting, unit tests, and dev server launch.
+
+Files or modules expected to change:
+- package.json
+
+Risks or things to watch out for:
+- Potential breaking changes in Next.js 15.x patch versions (unlikely for 15.2 -> 15.5 but theoretically possible with async APIs).
+
+WORK CHECKLIST
+
+- [x] package.json updated to next@15.5.6
+- [x] pnpm install executed
+- [x] Linting passed
+- [x] Vitest tests passed
+- [x] Dev server starts successfully
+
+END LOG
+
+Timestamp: 2026-01-06 05:20
+Summary of what actually changed:
+- Updated `next` dependency from 15.2.8 to 15.5.6 in `package.json`.
+- Successfully installed new version and resolved the runtime preparation error.
+- Verified system stability with existing test suite and linting.
+
+Files actually modified:
+- package.json
+
+How it was tested:
+- `pnpm run lint` (PASS)
+- `pnpm test` (PASS)
+- `npm run dev` (PASS - starts correctly at localhost:3001)
+
+Test result:
+- PASS
+
+Known limitations or follow-up tasks:
+- None.
