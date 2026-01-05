@@ -497,20 +497,51 @@
   position: fixed;
   right: 0;
   top: 0;
-  bottom: 0;
+  bottom: calc(var(--sc-controlbar-height, 80px) + 20px);
   width: var(--sidebar-width);
   background: linear-gradient(180deg, rgba(20, 20, 22, 0.98) 0%, rgba(8, 8, 10, 0.98) 100%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
   backdrop-filter: blur(24px) saturate(140%);
   border-left: none;
-  border-radius: 0;
+  border-radius: 24px;
   z-index: 50;
   display: flex;
   flex-direction: column;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, transform 0.3s ease;
-  overflow: visible;
+  overflow: hidden;
   box-shadow: -18px 0 40px rgba(0, 0, 0, 0.6);
-  padding: 0.75rem 0.75rem calc(var(--sc-controlbar-height, 80px) + 1rem);
+  padding: 0;
+  margin-right: 20px;
+  max-height: calc(100vh - 40px);
+  top: 20px;
+  right: 0;
+  position: absolute;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.visualizerContainer {
+  height: 60px;
+  background: rgba(0, 0, 0, 0.3);
+  margin: 0.75rem 0.75rem 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.integrationGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 0.75rem 1rem;
+}
+
+.integrationStatus {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
 }
 
 .chatPanelCollapsed {

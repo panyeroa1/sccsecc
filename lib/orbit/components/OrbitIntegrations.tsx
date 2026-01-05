@@ -1,5 +1,7 @@
 import React from 'react';
 import styles from '@/styles/Eburon.module.css';
+import { useTracks, BarVisualizer } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 
 // Using standard SVGs or repurposing existing icons for demo
 const AppIcon = () => (
@@ -75,6 +77,9 @@ const integrations = [
 ];
 
 export function OrbitIntegrations() {
+  const tracks = useTracks([Track.Source.Microphone], { onlySubscribed: false });
+  const localMicTrack = tracks.find(t => t.participant.isLocal);
+
   return (
     <div className={styles.sidebarSection}>
       <div className={styles.sidebarHeader}>
@@ -85,32 +90,41 @@ export function OrbitIntegrations() {
         <span className={styles.sidebarHeaderMeta}>10 Active Tools</span>
       </div>
 
+      {localMicTrack && (
+        <div className={styles.visualizerContainer}>
+          <BarVisualizer 
+             state={{ track: localMicTrack.publication?.track, trackReference: localMicTrack }}
+             barCount={30}
+             options={{ color: '#22c55e', height: 40 }}
+             style={{ width: '100%', height: '100%' }}
+          />
+        </div>
+      )}
+
       <div className={styles.sidebarBody}>
-        {integrations.map((tool, index) => (
-          <div key={index} className={styles.sidebarCard}>
-            <div className={styles.sidebarCardIcon} style={{ fontSize: '1.5rem', marginRight: '12px' }}>
-              {tool.icon}
-            </div>
-            <div className={styles.sidebarCardText}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className={styles.sidebarCardLabel}>{tool.title}</span>
-                {tool.status && (
-                  <span style={{ 
-                    fontSize: '0.65rem', 
-                    padding: '2px 6px', 
-                    borderRadius: '4px', 
-                    background: tool.status === 'Active' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                    color: tool.status === 'Active' ? '#4ade80' : 'rgba(255, 255, 255, 0.6)',
-                    fontWeight: 600
-                  }}>
-                    {tool.status}
-                  </span>
-                )}
+        <div className={styles.integrationGrid}>
+          {integrations.map((tool, index) => (
+            <div key={index} className={styles.sidebarCard}>
+              <div className={styles.sidebarCardIcon} style={{ fontSize: '1.5rem', marginRight: '12px' }}>
+                {tool.icon}
               </div>
-              <span className={styles.sidebarCardHint}>{tool.description}</span>
+              <div className={styles.sidebarCardText}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className={styles.sidebarCardLabel}>{tool.title}</span>
+                  {tool.status && (
+                    <span className={styles.integrationStatus} style={{ 
+                      background: tool.status === 'Active' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                      color: tool.status === 'Active' ? '#4ade80' : 'rgba(255, 255, 255, 0.6)',
+                    }}>
+                      {tool.status}
+                    </span>
+                  )}
+                </div>
+                <span className={styles.sidebarCardHint}>{tool.description}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
