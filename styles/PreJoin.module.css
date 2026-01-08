@@ -248,6 +248,36 @@
   color: var(--gold);
 }
 
+.permissionError {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 14px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.permissionError p {
+  margin: 0 0 0.75rem;
+  color: #fca5a5;
+  font-size: 0.9rem;
+}
+
+.retryButton {
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--gold);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+  background: rgba(212, 175, 55, 0.25);
+}
+
 .deviceGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
