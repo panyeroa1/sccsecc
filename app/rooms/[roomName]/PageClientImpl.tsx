@@ -22,6 +22,9 @@ import { LiveCaptions } from '@/lib/LiveCaptions';
 import { CustomPreJoin } from '@/lib/CustomPreJoin';
 import { useDeepgramTranscription } from '@/lib/useDeepgramTranscription';
 import { useGeminiLive } from '@/lib/useGeminiLive';
+import { useWebSpeech } from '@/lib/useWebSpeech';
+import { useAssemblyAI } from '@/lib/useAssemblyAI';
+import { TranscriptionSidebar, TranscriptionProvider } from '@/lib/TranscriptionSidebar';
 import roomStyles from '@/styles/Eburon.module.css';
 import sidebarStyles from '@/styles/PreJoin.module.css';
 
@@ -518,6 +521,7 @@ function VideoConferenceComponent(props: {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [tabStream, setTabStream] = React.useState<MediaStream | null>(null);
   const [isRadioStreaming, setIsRadioStreaming] = React.useState(false);
+  const [provider, setProvider] = React.useState<TranscriptionProvider>('deepgram');
 
   // Deepgram Hook
   const {
@@ -540,9 +544,50 @@ function VideoConferenceComponent(props: {
     toggleRecording: toggleGemini,
   } = useGeminiLive();
 
-  const activeTranscript = deepgramTranscript || geminiTranscript;
-  const activeInterim = deepgramInterimTranscript;
-  const isListening = isDeepgramListening || isGeminiListening;
+  // Web Speech Hook
+  const {
+      isListening: isWebSpeechListening,
+      transcript: webSpeechTranscript,
+      interimTranscript: webSpeechInterim,
+      startListening: startWebSpeech,
+      stopListening: stopWebSpeech
+  } = useWebSpeech();
+
+  // AssemblyAI Hook
+  const {
+      isListening: isAssemblyListening,
+      transcript: assemblyTranscript,
+      interimTranscript: assemblyInterim,
+      startListening: startAssembly,
+      stopListening: stopAssembly
+  } = useAssemblyAI();
+
+  // Active Transcript Resolution
+  let activeTranscript = '';
+  let activeInterim = '';
+  let isListening = false;
+  
+  switch (provider) {
+      case 'deepgram':
+          activeTranscript = deepgramTranscript;
+          activeInterim = deepgramInterimTranscript;
+          isListening = isDeepgramListening;
+          break;
+      case 'gemini':
+          activeTranscript = geminiTranscript;
+          isListening = isGeminiListening;
+          break;
+      case 'webspeech':
+          activeTranscript = webSpeechTranscript;
+          activeInterim = webSpeechInterim;
+          isListening = isWebSpeechListening;
+          break;
+      case 'assemblyai':
+          activeTranscript = assemblyTranscript;
+          activeInterim = assemblyInterim;
+          isListening = isAssemblyListening;
+          break;
+  }
 
   const captureTabAudio = React.useCallback(async () => {
     try {
@@ -562,33 +607,54 @@ function VideoConferenceComponent(props: {
   }, []);
 
   const handleToggleRadioStream = React.useCallback(async () => {
-     if (isListening) {
-         if (isDeepgramListening) stopDeepgram();
+     if (isRadioStreaming) {
          setIsRadioStreaming(false);
-     } else {
-         try {
-             setIsRadioStreaming(true);
-             await startDeepgramStream('https://playerservices.streamtheworld.com/api/livestream-redirect/CSPANRADIOAAC.aac');
-         } catch (e) {
-             setIsRadioStreaming(false);
-         }
+         stopDeepgram();
+         return;
      }
-  }, [isListening, isDeepgramListening, stopDeepgram, startDeepgramStream]);
+      
+      if (provider !== 'deepgram') {
+          setProvider('deepgram');
+      }
+
+      try {
+          setIsRadioStreaming(true);
+          await startDeepgramStream('https://playerservices.streamtheworld.com/api/livestream-redirect/CSPANRADIOAAC.aac');
+      } catch (e) {
+         setIsRadioStreaming(false);
+      }
+  }, [isRadioStreaming, provider, stopDeepgram, startDeepgramStream]);
 
   const handleToggleListening = React.useCallback(async () => {
-    if (isListening) {
-      if (isDeepgramListening) stopDeepgram();
-      if (isGeminiListening) toggleGemini();
-      if (isRadioStreaming) setIsRadioStreaming(false);
-    } else {
+    // Stop all
+    if (isDeepgramListening) stopDeepgram();
+    if (isGeminiListening) toggleGemini();
+    if (isWebSpeechListening) stopWebSpeech();
+    if (isAssemblyListening) stopAssembly();
+    if (isRadioStreaming) setIsRadioStreaming(false);
+    
+    if (!isListening) {
       let currentStream = tabStream;
       try {
-        await startDeepgram(undefined, currentStream || undefined);
+        switch (provider) {
+            case 'deepgram':
+                await startDeepgram(undefined, currentStream || undefined);
+                break;
+            case 'gemini':
+                toggleGemini(currentStream || undefined);
+                break;
+            case 'webspeech':
+                startWebSpeech();
+                break;
+            case 'assemblyai':
+                await startAssembly();
+                break;
+        }
       } catch (err) {
-         toggleGemini(currentStream || undefined);
+         console.error(err);
       }
     }
-  }, [isListening, isDeepgramListening, stopDeepgram, isGeminiListening, toggleGemini, startDeepgram, tabStream, isRadioStreaming]);
+  }, [isListening, provider, isDeepgramListening, stopDeepgram, isGeminiListening, toggleGemini, isWebSpeechListening, stopWebSpeech, isAssemblyListening, stopAssembly, tabStream, isRadioStreaming, startDeepgram, startWebSpeech, startAssembly]);
 
   React.useEffect(() => {
     const updateDevices = async () => {
@@ -1064,63 +1130,30 @@ function VideoConferenceComponent(props: {
           <RecordingIndicator />
 
           {/* Transcription Sidebar Overlay */}
-          {isSidebarOpen && (
-            <div className={sidebarStyles.transcriptionSidebar} style={{zIndex: 50, right: 80, top: 20, height: 'calc(100% - 100px)', position: 'absolute'}}>
-              <div className={sidebarStyles.sidebarHeader}>
-                <h3>Live Transcription</h3>
-                <button className={sidebarStyles.closeSidebarBtn} onClick={() => setIsSidebarOpen(false)}>×</button>
-              </div>
-              
-              <div className={sidebarStyles.transcriptionContent}>
-                {activeTranscript ? (
-                   <p className={sidebarStyles.finalText}>{activeTranscript}</p>
-                ) : (
-                   <p className={sidebarStyles.placeholderText}>
-                     {isListening ? "Listening..." : "Start transcription to see text here."}
-                   </p>
-                )}
-                {activeInterim && <p className={sidebarStyles.interimText}>{activeInterim}</p>}
-              </div>
+          <TranscriptionSidebar 
+             isOpen={isSidebarOpen}
+             onClose={() => setIsSidebarOpen(false)}
+             transcript={activeTranscript}
+             interimTranscript={activeInterim}
+             isListening={isListening}
+             provider={provider}
+             onProviderChange={setProvider}
+             onToggleListening={handleToggleListening}
+             tabStream={tabStream}
+             onToggleTabAudio={async () => {
+                if (tabStream) {
+                    tabStream.getTracks().forEach(t => t.stop());
+                    setTabStream(null);
+                } else {
+                    await captureTabAudio();
+                }
+             }}
+             isRadioStreaming={isRadioStreaming}
+             onToggleRadio={handleToggleRadioStream}
+             isGeminiActive={isGeminiListening}
+          />
 
-               <div className={sidebarStyles.captionSection}>
-                 <button
-                    type="button"
-                    className={`${sidebarStyles.captionToggleBtn} ${isListening ? sidebarStyles.captionToggleActive : ''}`}
-                    onClick={handleToggleListening}
-                 >
-                   <span>{isListening ? 'Stop Mic/Tab' : 'Start Mic/Tab'}</span>
-                 </button>
-                 
-                 <button
-                    type="button"
-                    className={`${sidebarStyles.captionToggleBtn} ${tabStream ? sidebarStyles.captionToggleActive : ''}`}
-                    onClick={async () => {
-                      if (tabStream) {
-                        tabStream.getTracks().forEach(t => t.stop());
-                        setTabStream(null);
-                      } else {
-                        await captureTabAudio();
-                      }
-                    }}
-                 >
-                   <span>{tabStream ? 'Stop Tab Audio' : 'Share Tab Audio'}</span>
-                 </button>
-
-                 <button
-                    type="button"
-                    className={`${sidebarStyles.captionToggleBtn} ${isRadioStreaming ? sidebarStyles.captionToggleActive : ''}`}
-                    onClick={handleToggleRadioStream}
-                 >
-                   <span>{isRadioStreaming ? 'Stop Radio' : 'Test Radio'}</span>
-                 </button>
-                 
-                 {isGeminiListening && <span className={sidebarStyles.geminiBadge}>Gemini Active</span>}
-                 {tabStream && <span className={sidebarStyles.geminiBadge} style={{background: '#10b981'}}>Tab Audio</span>}
-              </div>
-            </div>
-          )}
-
-          {/* Floating Caption Button if Sidebar is Closed OR in Control Bar - Putting it floating for now as requested "add caption icon" */}
+          {/* Floating Caption Button */}
            <div style={{position: 'absolute', bottom: 100, left: 20, zIndex: 60}}>
              <button
                 type="button"

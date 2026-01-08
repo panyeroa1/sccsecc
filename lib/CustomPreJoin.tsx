@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { supabase } from '@/lib/orbit/services/supabaseClient';
 import { useDeepgramTranscription } from '@/lib/useDeepgramTranscription';
 import { useGeminiLive } from '@/lib/useGeminiLive';
+import { useWebSpeech } from '@/lib/useWebSpeech';
+import { useAssemblyAI } from '@/lib/useAssemblyAI';
+import { TranscriptionSidebar, TranscriptionProvider } from '@/lib/TranscriptionSidebar';
 import styles from '@/styles/PreJoin.module.css';
 
 interface DeviceInfo {
@@ -136,17 +139,61 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
   } = useGeminiLive();
 
   // Unified Transcription State
-  const isListening = isDeepgramListening || isGeminiListening;
-  const isConnecting = isDeepgramConnecting || geminiStatus === 'connecting';
+  const [provider, setProvider] = useState<TranscriptionProvider>('deepgram');
   
-  // Prefer Deepgram, fallback to Gemini
-  const activeTranscript = deepgramTranscript || geminiTranscript;
-  const activeInterim = deepgramInterimTranscript; 
-  const activeError = deepgramError;
+  // Web Speech Hook
+  const {
+      isListening: isWebSpeechListening,
+      transcript: webSpeechTranscript,
+      interimTranscript: webSpeechInterim,
+      startListening: startWebSpeech,
+      stopListening: stopWebSpeech,
+      error: webSpeechError
+  } = useWebSpeech();
 
-  // Screen/Tab Audio Capture
+  // AssemblyAI Hook
+  const {
+      isListening: isAssemblyListening,
+      transcript: assemblyTranscript,
+      interimTranscript: assemblyInterim,
+      startListening: startAssembly,
+      stopListening: stopAssembly,
+      error: assemblyError
+  } = useAssemblyAI();
+
+  // Active Transcript Resolution
+  let activeTranscript = '';
+  let activeInterim = '';
+  let activeError: string | null = null;
+  let isListening = false;
+
+  switch (provider) {
+      case 'deepgram':
+          activeTranscript = deepgramTranscript;
+          activeInterim = deepgramInterimTranscript;
+          activeError = deepgramError;
+          isListening = isDeepgramListening;
+          break;
+      case 'gemini':
+          activeTranscript = geminiTranscript;
+          isListening = isGeminiListening;
+          break;
+      case 'webspeech':
+          activeTranscript = webSpeechTranscript;
+          activeInterim = webSpeechInterim;
+          activeError = webSpeechError;
+          isListening = isWebSpeechListening;
+          break;
+      case 'assemblyai':
+          activeTranscript = assemblyTranscript;
+          activeInterim = assemblyInterim;
+          activeError = assemblyError;
+          isListening = isAssemblyListening;
+          break;
+  }
+  
+  // Tab/Radio State
   const [tabStream, setTabStream] = useState<MediaStream | null>(null);
-  // Radio Stream state
   const [isRadioStreaming, setIsRadioStreaming] = useState(false);
 
   const captureTabAudio = useCallback(async () => {
@@ -186,40 +233,64 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
   }, []);
 
   const handleToggleListening = useCallback(async () => {
-    if (isListening) {
-      if (isDeepgramListening) stopDeepgram();
-      if (isGeminiListening) toggleGemini();
-      if (isRadioStreaming) setIsRadioStreaming(false); // Stop triggered by stopDeepgram mainly, but flag needs reset
-    } else {
-      // Determine source: Tab Audio or Microphone
-      let currentStream = tabStream;
-      
-      // Try Deepgram first
-      try {
-        await startDeepgram(selectedAudioInput || undefined, currentStream || undefined);
-      } catch (err) {
-        console.warn("Deepgram failed to start, falling back to Gemini", err);
-        toggleGemini(currentStream || undefined);
-      }
+    // Stop all
+    if (isDeepgramListening) stopDeepgram();
+    if (isGeminiListening) toggleGemini();
+    if (isWebSpeechListening) stopWebSpeech();
+    if (isAssemblyListening) stopAssembly();
+    if (isRadioStreaming) setIsRadioStreaming(false);
+
+    if (!isListening) {
+        // Start selected
+        let currentStream = tabStream;
+        try {
+            switch (provider) {
+                case 'deepgram':
+                    await startDeepgram(selectedAudioInput || undefined, currentStream || undefined);
+                    break;
+                case 'gemini':
+                    toggleGemini(currentStream || undefined);
+                    break;
+                case 'webspeech':
+                    startWebSpeech();
+                    break;
+                case 'assemblyai':
+                    await startAssembly();
+                    break;
+            }
+        } catch (err) {
+            console.error("Failed to start transcription", err);
+        }
     }
-  }, [isListening, isDeepgramListening, stopDeepgram, isGeminiListening, toggleGemini, startDeepgram, selectedAudioInput, tabStream, isRadioStreaming]);
+  }, [isListening, provider, isDeepgramListening, stopDeepgram, isGeminiListening, toggleGemini, isWebSpeechListening, stopWebSpeech, isAssemblyListening, stopAssembly, isRadioStreaming, startDeepgram, startWebSpeech, startAssembly, tabStream, selectedAudioInput]);
 
   const handleToggleRadioStream = useCallback(async () => {
-      if (isListening) {
-          // Stop whatever is running
-          if (isDeepgramListening) stopDeepgram();
+      // Logic for radio mainly supports Deepgram for now (stream piping)
+      if (isRadioStreaming) {
           setIsRadioStreaming(false);
-      } else {
-          // Start Radio Stream
-          try {
-              setIsRadioStreaming(true);
-              await startDeepgramStream('https://playerservices.streamtheworld.com/api/livestream-redirect/CSPANRADIOAAC.aac');
-          } catch (err) {
-              console.error("Failed to start radio stream", err);
-              setIsRadioStreaming(false);
-          }
+          stopDeepgram(); 
+          return;
       }
-  }, [isListening, isDeepgramListening, stopDeepgram, startDeepgramStream]);
+      
+      // Auto-switch to Deepgram if Radio is selected? Or strictly enforce provider?
+      // Let's enforce provider must be Deepgram for Radio for now, or just try using active provider if supports stream.
+      // Currently only Deepgram hook has startStreamListening.
+      if (provider !== 'deepgram') {
+          // Toast or switch? Let's auto switch for convenience
+          setProvider('deepgram');
+          // Wait for render? No, we likely need to just call it.
+          // But state update is async.
+          // For now, let's just warn or simplistic approach:
+      }
+      
+      try {
+          // We always use Deepgram for the radio stream in this implementation
+          setIsRadioStreaming(true);
+          await startDeepgramStream('https://playerservices.streamtheworld.com/api/livestream-redirect/CSPANRADIOAAC.aac');
+      } catch (err) {
+          setIsRadioStreaming(false);
+      }
+  }, [isRadioStreaming, stopDeepgram, startDeepgramStream, provider]);
 
   // Effect to handle Deepgram error and switch to Gemini automatically if desired
   useEffect(() => {
@@ -506,48 +577,13 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
     }
   };
 
+  // Determine connection state for UI
+  const isConnecting = isDeepgramConnecting || geminiStatus === 'connecting';
+
   return (
     <div className={styles.preJoinPage}>
-      {/* Transcription Sidebar */}
-      <div className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ''}`}>
-        <div className={styles.sidebarHeader}>
-          <h3>Live Transcription</h3>
-          <button 
-            className={styles.closeSidebarBtn}
-            onClick={() => setIsSidebarOpen(false)}
-          >
-            ×
-          </button>
-        </div>
-        <div className={styles.sidebarContent}>
-          {activeError && (
-             <div className={styles.sidebarError}>
-               Error: {activeError}
-               <button 
-                 className={styles.retryFallbackBtn}
-                 onClick={() => {
-                   if (isDeepgramListening) stopDeepgram();
-                   toggleGemini();
-                 }}
-               >
-                 Try Gemini Fallback
-               </button>
-             </div>
-          )}
-          {(!activeTranscript && !activeInterim) ? (
-            <div className={styles.emptyState}>
-              <p>{isListening ? "Listening..." : "Start testing microphone to see transcription."}</p>
-            </div>
-          ) : (
-            <div className={styles.transcriptStream}>
-               <p>
-                 {activeTranscript}
-                 <span className={styles.interimText}>{activeInterim}</span>
-               </p>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* (Legacy Sidebar removed - replaced by TranscriptionSidebar below) */}
+
 
       <form className={styles.preJoinContainer} onSubmit={handleSubmit}>
         <div className={styles.preJoinHeader}>
@@ -699,7 +735,32 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
             </button>
           </div>
 
+          {/* New Transcription Sidebar */}
+          <TranscriptionSidebar 
+             isOpen={isSidebarOpen}
+             onClose={() => setIsSidebarOpen(false)}
+             transcript={activeTranscript}
+             interimTranscript={activeInterim}
+             isListening={isListening}
+             provider={provider}
+             onProviderChange={setProvider}
+             onToggleListening={handleToggleListening}
+             tabStream={tabStream}
+             onToggleTabAudio={async () => {
+                if (tabStream) {
+                    tabStream.getTracks().forEach(t => t.stop());
+                    setTabStream(null);
+                } else {
+                    await captureTabAudio();
+                }
+             }}
+             isRadioStreaming={isRadioStreaming}
+             onToggleRadio={handleToggleRadioStream}
+             isGeminiActive={isGeminiListening}
+          />
+          
           <div className={styles.captionSection}>
+             {/* Caption Toggle Button for Sidebar */}
              <button
                 type="button"
                 className={`${styles.captionToggleBtn} ${isSidebarOpen ? styles.captionToggleActive : ''}`}
@@ -709,35 +770,7 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
                <CaptionIcon />
                <span>{isSidebarOpen ? 'Hide Captions' : 'Show Captions'}</span>
              </button>
-             
-             <button
-                type="button"
-                className={`${styles.captionToggleBtn} ${tabStream ? styles.captionToggleActive : ''}`}
-                onClick={async () => {
-                  if (tabStream) {
-                    tabStream.getTracks().forEach(t => t.stop());
-                    setTabStream(null);
-                  } else {
-                    await captureTabAudio();
-                  }
-                }}
-                title="Use Tab Audio for Transcription"
-             >
-               <span>{tabStream ? 'Stop Tab Audio' : 'Share Tab Audio'}</span>
-             </button>
-
-             <button
-                type="button"
-                className={`${styles.captionToggleBtn} ${isRadioStreaming ? styles.captionToggleActive : ''}`}
-                onClick={handleToggleRadioStream}
-                title="Test with Live Radio Stream (C-SPAN)"
-             >
-               <span>{isRadioStreaming ? 'Stop Radio' : 'Test Radio'}</span>
-             </button>
-
-             {isGeminiListening && <span className={styles.geminiBadge}>Gemini AI Active</span>}
-             {tabStream && <span className={styles.geminiBadge} style={{background: '#10b981'}}>Tab Audio</span>}
-             {isRadioStreaming && <span className={styles.geminiBadge} style={{background: '#f59e0b'}}>Radio Stream</span>}
+             {isListening && <span className={styles.geminiBadge}>{provider.toUpperCase()} Active</span>}
           </div>
 
           {/* Live Transcription Display (In-line if sidebar is closed, or just hidden) */}
