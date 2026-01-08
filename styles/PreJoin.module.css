@@ -404,22 +404,22 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 320px;
+  width: 360px;
   height: 100%;
-  background: rgba(10, 10, 10, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 8, 8, 0.95);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: -20px 0 40px rgba(0, 0, 0, 0.6);
   z-index: 50;
   display: flex;
   flex-direction: column;
-  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
-  animation: slideInRight 0.3s ease;
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 .sidebar {
@@ -429,8 +429,8 @@
   width: 320px;
   height: 100vh;
   background: rgba(10, 10, 10, 0.95);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 1000;
   transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -453,10 +453,11 @@
 
 .sidebarHeader h3 {
   margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--white);
-  letter-spacing: 0.5px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
 }
 
 .closeSidebarBtn {
@@ -522,37 +523,91 @@
   background: rgba(239, 68, 68, 0.3);
 }
 
-/* Caption Toggle Button */
-.captionSection {
-  margin-top: 1rem;
+/* Transcription Content Area */
+.transcriptionContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.finalText {
+  color: #e5e5e5;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.interimText {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  font-size: 0.95rem;
+}
+
+.placeholderText {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 4rem;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+}
+
+/* Control Section at Bottom */
+.captionSection {
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .captionToggleBtn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  justify-content: center;
+  width: 100%;
+  gap: 0.6rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-secondary);
-  padding: 0.6rem 1rem;
-  border-radius: 8px;
+  padding: 0.9rem;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.captionToggleBtn:hover {
-  border-color: var(--white);
-  color: var(--white);
+.captionToggleBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: transparent;
+}
+
+.captionToggleBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  transform: translateY(-1px);
 }
 
 .captionToggleActive {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(212, 175, 55, 0.15);
   border-color: var(--gold);
   color: var(--gold);
+}
+
+.captionToggleActive:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: var(--gold);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
 }
 
 .geminiBadge {

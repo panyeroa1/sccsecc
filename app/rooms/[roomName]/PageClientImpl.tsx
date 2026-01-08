@@ -20,13 +20,12 @@ import { OrbitTranslatorVertical } from '@/lib/orbit/components/OrbitTranslatorV
 import { OrbitIntegrations } from '@/lib/orbit/components/OrbitIntegrations';
 import { LiveCaptions } from '@/lib/LiveCaptions';
 import { CustomPreJoin } from '@/lib/CustomPreJoin';
-import { useDeepgramTranscription } from '@/lib/useDeepgramTranscription';
-import { useGeminiLive } from '@/lib/useGeminiLive';
-import { useWebSpeech } from '@/lib/useWebSpeech';
-import { useAssemblyAI } from '@/lib/useAssemblyAI';
-import { TranscriptionSidebar, TranscriptionProvider } from '@/lib/TranscriptionSidebar';
+
+
+import { CinemaCaptionOverlay } from '@/lib/CinemaCaptionOverlay';
+
 import roomStyles from '@/styles/Eburon.module.css';
-import sidebarStyles from '@/styles/PreJoin.module.css';
+
 
 
 import {
@@ -510,143 +509,11 @@ function VideoConferenceComponent(props: {
   // Transcription State (Client-Side)
   // This lives alongside the "LiveCaptions" component which handles room-wide broadcasted captions.
   // This specific sidebar is for the "Streaming/Local" transcription (Deepgram/Gemini) requested by user.
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
-  const [tabStream, setTabStream] = React.useState<MediaStream | null>(null);
-  const [isRadioStreaming, setIsRadioStreaming] = React.useState(false);
-  const [provider, setProvider] = React.useState<TranscriptionProvider>('deepgram');
 
-  // Deepgram Hook
-  const {
-    isListening: isDeepgramListening,
-    transcript: deepgramTranscript,
-    interimTranscript: deepgramInterimTranscript,
-    error: deepgramError,
-    startListening: startDeepgram,
-    startStreamListening: startDeepgramStream,
-    stopListening: stopDeepgram,
-  } = useDeepgramTranscription({
-    language: 'multi',
-    model: 'nova-2',
-  });
 
-  // Gemini Hook
-  const {
-    isRecording: isGeminiListening,
-    transcription: geminiTranscript,
-    toggleRecording: toggleGemini,
-  } = useGeminiLive();
 
-  // Web Speech Hook
-  const {
-      isListening: isWebSpeechListening,
-      transcript: webSpeechTranscript,
-      interimTranscript: webSpeechInterim,
-      startListening: startWebSpeech,
-      stopListening: stopWebSpeech
-  } = useWebSpeech();
 
-  // AssemblyAI Hook
-  const {
-      isListening: isAssemblyListening,
-      transcript: assemblyTranscript,
-      interimTranscript: assemblyInterim,
-      startListening: startAssembly,
-      stopListening: stopAssembly
-  } = useAssemblyAI();
 
-  // Active Transcript Resolution
-  let activeTranscript = '';
-  let activeInterim = '';
-  let isListening = false;
-  
-  switch (provider) {
-      case 'deepgram':
-          activeTranscript = deepgramTranscript;
-          activeInterim = deepgramInterimTranscript;
-          isListening = isDeepgramListening;
-          break;
-      case 'gemini':
-          activeTranscript = geminiTranscript;
-          isListening = isGeminiListening;
-          break;
-      case 'webspeech':
-          activeTranscript = webSpeechTranscript;
-          activeInterim = webSpeechInterim;
-          isListening = isWebSpeechListening;
-          break;
-      case 'assemblyai':
-          activeTranscript = assemblyTranscript;
-          activeInterim = assemblyInterim;
-          isListening = isAssemblyListening;
-          break;
-  }
-
-  const captureTabAudio = React.useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-      const audioTrack = stream.getAudioTracks()[0];
-      if (!audioTrack) {
-        stream.getTracks().forEach(t => t.stop());
-        return null;
-      }
-      stream.getVideoTracks()[0].onended = () => setTabStream(null);
-      setTabStream(stream);
-      return stream;
-    } catch (err) {
-      console.error("Error capturing tab audio:", err);
-      return null;
-    }
-  }, []);
-
-  const handleToggleRadioStream = React.useCallback(async () => {
-     if (isRadioStreaming) {
-         setIsRadioStreaming(false);
-         stopDeepgram();
-         return;
-     }
-      
-      if (provider !== 'deepgram') {
-          setProvider('deepgram');
-      }
-
-      try {
-          setIsRadioStreaming(true);
-          await startDeepgramStream('https://playerservices.streamtheworld.com/api/livestream-redirect/CSPANRADIOAAC.aac');
-      } catch (e) {
-         setIsRadioStreaming(false);
-      }
-  }, [isRadioStreaming, provider, stopDeepgram, startDeepgramStream]);
-
-  const handleToggleListening = React.useCallback(async () => {
-    // Stop all
-    if (isDeepgramListening) stopDeepgram();
-    if (isGeminiListening) toggleGemini();
-    if (isWebSpeechListening) stopWebSpeech();
-    if (isAssemblyListening) stopAssembly();
-    if (isRadioStreaming) setIsRadioStreaming(false);
-    
-    if (!isListening) {
-      let currentStream = tabStream;
-      try {
-        switch (provider) {
-            case 'deepgram':
-                await startDeepgram(undefined, currentStream || undefined);
-                break;
-            case 'gemini':
-                toggleGemini(currentStream || undefined);
-                break;
-            case 'webspeech':
-                startWebSpeech();
-                break;
-            case 'assemblyai':
-                await startAssembly();
-                break;
-        }
-      } catch (err) {
-         console.error(err);
-      }
-    }
-  }, [isListening, provider, isDeepgramListening, stopDeepgram, isGeminiListening, toggleGemini, isWebSpeechListening, stopWebSpeech, isAssemblyListening, stopAssembly, tabStream, isRadioStreaming, startDeepgram, startWebSpeech, startAssembly]);
 
   React.useEffect(() => {
     const updateDevices = async () => {
@@ -1082,14 +949,9 @@ function VideoConferenceComponent(props: {
 
 
           {isTranscriptionEnabled && (
-            <LiveCaptions 
-              room={room}
-              enabled={isTranscriptionEnabled}
-              vadEnabled={vadEnabled}
-              broadcastEnabled={true}
-              language="auto"
-              audioSource="auto"
-              onTranscriptSegment={handleTranscriptSegment}
+            <CinemaCaptionOverlay 
+                onTranscriptSegment={handleTranscriptSegment}
+                defaultDeviceId={audioCaptureOptions?.deviceId as string}
             />
           )}
 
@@ -1116,36 +978,14 @@ function VideoConferenceComponent(props: {
             roomState={roomState}
             userId={user?.id}
             audioCaptureOptions={audioCaptureOptions}
-            onCaptionToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-            isCaptionOpen={isSidebarOpen}
+            onCaptionToggle={() => setIsTranscriptionEnabled(!isTranscriptionEnabled)}
+            isCaptionOpen={isTranscriptionEnabled}
           />
           
           <DebugMode />
           <RecordingIndicator />
 
-          {/* Transcription Sidebar Overlay */}
-          <TranscriptionSidebar 
-             isOpen={isSidebarOpen}
-             onClose={() => setIsSidebarOpen(false)}
-             transcript={activeTranscript}
-             interimTranscript={activeInterim}
-             isListening={isListening}
-             provider={provider}
-             onProviderChange={setProvider}
-             onToggleListening={handleToggleListening}
-             tabStream={tabStream}
-             onToggleTabAudio={async () => {
-                if (tabStream) {
-                    tabStream.getTracks().forEach(t => t.stop());
-                    setTabStream(null);
-                } else {
-                    await captureTabAudio();
-                }
-             }}
-             isRadioStreaming={isRadioStreaming}
-             onToggleRadio={handleToggleRadioStream}
-             isGeminiActive={isGeminiListening}
-          />
+
 
           {/* Floating Caption Button */}
 
