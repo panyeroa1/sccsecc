@@ -1,44 +1,9 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useDeepgramTranscription } from './useDeepgramTranscription';
-import { useGeminiLive } from './useGeminiLive';
-import { useWebSpeech } from './useWebSpeech';
-import { useAssemblyAI } from './useAssemblyAI';
 
-// Styles specific to this overlay
 const overlayStyles = {
-  controlPill: {
-    backgroundColor: '#2e7d32', // Forest Green
-    borderRadius: '50px',
-    display: 'flex',
-    alignItems: 'center',
-    padding: '5px 8px',
-    boxShadow: '0 4px 15px rgba(0, 255, 0, 0.3)',
-    position: 'absolute' as 'absolute',
-    userSelect: 'none' as 'none',
-    border: '1px solid #4caf50',
-    cursor: 'grab',
-    zIndex: 1000,
-    transition: 'box-shadow 0.2s',
-  },
-  pillSection: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '10px 15px',
-    cursor: 'pointer',
-    borderRadius: '30px',
-    gap: '8px',
-    color: '#ffffff',
-    fontWeight: 700,
-    fontSize: '13px',
-  },
-  divider: {
-    width: '1px',
-    height: '20px',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    margin: '0 2px',
-  },
   captionBar: {
     position: 'fixed' as 'fixed',
     bottom: 80, // Position above the control bar
@@ -64,19 +29,6 @@ const overlayStyles = {
     width: '100%',
     textShadow: '0px 1px 2px rgba(0,0,0,0.8)',
   },
-  interim: {
-    color: '#aaa',
-    fontStyle: 'italic' as 'italic',
-  }
-};
-
-type ModelCode = 'ORBT' | 'SONQ' | 'DELX' | 'PLTO';
-
-const MODEL_MAP: Record<ModelCode, { name: string; provider: string }> = {
-  'ORBT': { name: 'Deepgram', provider: 'deepgram' },
-  'SONQ': { name: 'AssemblyAI', provider: 'assemblyai' },
-  'DELX': { name: 'Gemini Live', provider: 'gemini' },
-  'PLTO': { name: 'WebSpeech', provider: 'webspeech' }
 };
 
 interface CinemaCaptionOverlayProps {
@@ -85,17 +37,15 @@ interface CinemaCaptionOverlayProps {
 }
 
 export function CinemaCaptionOverlay({ onTranscriptSegment, defaultDeviceId }: CinemaCaptionOverlayProps) {
-    const [position, setPosition] = useState({ x: 50, y: 50 });
-    const [isDragging, setIsDragging] = useState(false);
-    const dragOffset = useRef({ x: 0, y: 0 });
-    const [selectedModel, setSelectedModel] = useState<ModelCode>('ORBT');
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [displayText, setDisplayText] = useState('');
     const [isFading, setIsFading] = useState(false);
     const captionRef = useRef<HTMLDivElement>(null);
     
-    // All transcription hooks
-    const deepgram = useDeepgramTranscription({
+    const {
+        isListening,
+        transcript,
+        interimTranscript,
+    } = useDeepgramTranscription({
         model: 'nova-2',
         language: 'en',
         onTranscript: (res) => {
@@ -104,35 +54,6 @@ export function CinemaCaptionOverlay({ onTranscriptSegment, defaultDeviceId }: C
             }
         }
     });
-
-    const gemini = useGeminiLive();
-    const webspeech = useWebSpeech();
-    const assembly = useAssemblyAI();
-
-    // Map to active hook based on selected model
-    let activeHook: any;
-    switch (selectedModel) {
-        case 'ORBT':
-            activeHook = deepgram;
-            break;
-        case 'SONQ':
-            activeHook = assembly;
-            break;
-        case 'DELX':
-            activeHook = {
-                isListening: gemini.isRecording,
-                transcript: gemini.transcription,
-                interimTranscript: '',
-                startListening: gemini.toggleRecording,
-                stopListening: gemini.toggleRecording
-            };
-            break;
-        case 'PLTO':
-            activeHook = webspeech;
-            break;
-    }
-
-    const { isListening, transcript, interimTranscript, startListening, stopListening } = activeHook;
 
     // Auto-clear logic when text overflows
     useEffect(() => {
@@ -143,12 +64,11 @@ export function CinemaCaptionOverlay({ onTranscriptSegment, defaultDeviceId }: C
             const isOverflowing = element.scrollWidth > element.clientWidth;
             
             if (isOverflowing && transcript) {
-                // Trigger fade out
                 setIsFading(true);
                 setTimeout(() => {
                     setDisplayText('');
                     setIsFading(false);
-                }, 300); // Match fade duration
+                }, 300);
             } else if (!isFading) {
                 setDisplayText(fullText);
             }
@@ -157,141 +77,18 @@ export function CinemaCaptionOverlay({ onTranscriptSegment, defaultDeviceId }: C
         }
     }, [transcript, interimTranscript, isFading]);
 
-    // Draggable Logic
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if ((e.target as HTMLElement).closest('.dropdown-trigger') || (e.target as HTMLElement).closest('.dropdown-menu')) return;
-        
-        setIsDragging(true);
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset.current = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-        };
-    };
-
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (isDragging) {
-            setPosition({
-                x: e.clientX - dragOffset.current.x,
-                y: e.clientY - dragOffset.current.y
-            });
-        }
-    }, [isDragging]);
-
-    const handleMouseUp = useCallback(() => {
-        setIsDragging(false);
-    }, []);
-
-    useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
-        } else {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        }
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        }
-    }, [isDragging, handleMouseMove, handleMouseUp]);
-
-    const toggleListening = () => {
-        if (isListening) {
-            stopListening();
-        } else {
-            startListening(defaultDeviceId);
-        }
-    };
-
-    const handleModelChange = (model: ModelCode) => {
-        // Stop current provider
-        if (isListening) {
-            stopListening();
-        }
-        setSelectedModel(model);
-        setIsMenuOpen(false);
-        setDisplayText('');
-    };
-
     return (
-        <>
-            {/* Draggable Pill */}
+        <div style={overlayStyles.captionBar}>
             <div 
+                ref={captionRef}
                 style={{
-                    ...overlayStyles.controlPill,
-                    left: position.x,
-                    top: position.y,
-                    cursor: isDragging ? 'grabbing' : 'grab',
+                    ...overlayStyles.transcriptText,
+                    opacity: isFading ? 0 : 1,
+                    transition: 'opacity 0.3s ease-out'
                 }}
-                onMouseDown={handleMouseDown}
             >
-                {/* SPEAK Button */}
-                <div 
-                    style={{...overlayStyles.pillSection, backgroundColor: isListening ? '#d32f2f' : 'transparent'}}
-                    onClick={toggleListening}
-                >
-                    <span>{isListening ? 'STOP' : 'SPEAK'}</span>
-                </div>
-
-                <div style={overlayStyles.divider} />
-
-                {/* Model Selector Dropdown */}
-                <div 
-                    className="dropdown-trigger"
-                    style={overlayStyles.pillSection}
-                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                >
-                    <span>{selectedModel}</span>
-                    <span>▼</span>
-                </div>
-
-                {isMenuOpen && (
-                    <div className="dropdown-menu" style={{
-                        position: 'absolute',
-                        top: '115%',
-                        left: 0,
-                        backgroundColor: '#1e1e1e',
-                        borderRadius: '12px',
-                        border: '1px solid #444',
-                        padding: '5px',
-                        minWidth: '180px',
-                        color: 'white'
-                    }}>
-                        {(Object.keys(MODEL_MAP) as ModelCode[]).map(code => (
-                            <div 
-                                key={code}
-                                style={{
-                                    padding: '10px',
-                                    cursor: 'pointer',
-                                    fontSize: '13px',
-                                    borderBottom: code !== 'PLTO' ? '1px solid #333' : 'none',
-                                    backgroundColor: selectedModel === code ? 'rgba(76, 175, 80, 0.2)' : 'transparent',
-                                    fontWeight: selectedModel === code ? 700 : 400
-                                }}
-                                onClick={() => handleModelChange(code)}
-                            >
-                                <span style={{fontWeight: 700}}>{code}</span> - {MODEL_MAP[code].name}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {displayText || (isListening && <span style={{color: '#666', fontSize: '14px'}}>Listening...</span>)}
             </div>
-
-            {/* Bottom Caption Bar */}
-            <div style={overlayStyles.captionBar}>
-                <div 
-                    ref={captionRef}
-                    style={{
-                        ...overlayStyles.transcriptText,
-                        opacity: isFading ? 0 : 1,
-                        transition: 'opacity 0.3s ease-out'
-                    }}
-                >
-                    {displayText || (isListening && <span style={{color: '#666', fontSize: '18px'}}>Listening...</span>)}
-                </div>
-            </div>
-        </>
+        </div>
     );
 }
-
