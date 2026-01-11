@@ -29,6 +29,7 @@ interface UseDeepgramLiveReturn {
   stop: () => void;
   error: string | null;
   analyser: AnalyserNode | null;
+  words: Array<{ word: string; start: number; end: number; confidence: number }>;
 }
 
 /**
@@ -46,6 +47,7 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isFinal, setIsFinal] = useState(false);
+  const [words, setWords] = useState<Array<{ word: string; start: number; end: number; confidence: number }>>([]);
   const [error, setError] = useState<string | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
@@ -88,6 +90,7 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
 
     setError(null);
     setTranscript('');
+    setWords([]);
     setIsFinal(false);
 
     try {
@@ -126,6 +129,7 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
         endpointing: '100',        // 100ms pause detection (optimal for code-switching)
         encoding: 'linear16',
         sample_rate: '48000',
+        words: 'true',             // Word-level data for karaoke effect
       });
 
       // Add diarization if enabled
@@ -169,10 +173,15 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          const text = data.channel?.alternatives?.[0]?.transcript;
+          const alt = data.channel?.alternatives?.[0];
+          const text = alt?.transcript;
+          const newWords = alt?.words || [];
           
           if (text) {
             setTranscript(text);
+            if (newWords.length > 0) {
+              setWords(prev => data.is_final ? newWords : [...newWords]); // Simplified for interim
+            }
             setIsFinal(data.is_final ?? false);
           }
         } catch (e) {
@@ -209,6 +218,7 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
     start,
     stop,
     error,
-    analyser: analyserRef.current
+    analyser: analyserRef.current,
+    words
   };
 }

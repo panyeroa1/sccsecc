@@ -84,8 +84,7 @@ export function SpeakTranscriptionPanel({
       <div className={styles.sidebarHeader}>
         <div className={styles.sidebarHeaderText}>
           <div className="flex items-center gap-2">
-            <Mic size={16} />
-            <h3 className="uppercase tracking-widest text-[11px] font-bold">Live Transcription</h3>
+            <h3 className="uppercase tracking-widest text-[11px] font-bold">Transcription Feed</h3>
           </div>
           <div className={styles.sidebarHeaderMeta}>
             <span className={`text-[10px] uppercase tracking-wide font-medium ${isListening ? 'text-rose-400' : 'text-emerald-400'}`}>
@@ -140,10 +139,10 @@ export function SpeakTranscriptionPanel({
         <div className={styles.agentLogs}>
           {transcripts.length === 0 && !transcript && (
             <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/5 flex items-center justify-center">
-                <Mic size={24} className="text-slate-500" strokeWidth={1} />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/5 flex items-center justify-center">
+                <span className="text-xl">...</span>
               </div>
-              <p className="text-xs font-medium tracking-wide">Tap Start to begin transcription</p>
+              <p className="text-xs font-medium tracking-wide">Awaiting speech</p>
             </div>
           )}
 
@@ -183,7 +182,6 @@ export function SpeakTranscriptionPanel({
         {/* Audio Visualizer at the absolute bottom-most position */}
         <div className="mt-auto flex items-center justify-center border-t border-white/5 bg-[#070707]/90 backdrop-blur-xl sticky bottom-0 z-50 py-3">
           <div className="bg-slate-900/40 rounded-full px-4 py-1.5 border border-white/5 flex items-center gap-3 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-             <div className={`w-1.5 h-1.5 rounded-full ${isListening ? 'bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'bg-slate-700'}`} />
              <OrbitMicVisualizer analyser={analyser} isRecording={isListening} />
           </div>
         </div>

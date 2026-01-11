@@ -456,7 +456,7 @@ export function OrbitTranslatorVertical({
               )}
             </select>
             <div className={sharedStyles.agentSelectIcon}>
-              <Mic size={14} />
+              <ChevronDown size={14} />
             </div>
           </div>
         </div>
@@ -522,10 +522,10 @@ export function OrbitTranslatorVertical({
         <div className={sharedStyles.agentLogs}>
           {messages.length === 0 && !liveText && (
             <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/5 flex items-center justify-center">
-                <Volume2 size={24} className="text-slate-500" strokeWidth={1} />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/5 flex items-center justify-center">
+                <span className="text-xl">...</span>
               </div>
-              <p className="text-xs font-medium tracking-wide">Waiting for speech...</p>
+              <p className="text-xs font-medium tracking-wide">Ready for input</p>
             </div>
           )}
 

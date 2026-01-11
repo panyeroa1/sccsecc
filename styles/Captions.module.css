@@ -12,15 +12,39 @@
 
 .captionsText {
   color: #00FF00; /* Lime green */
-  font-family: 'Roboto', sans-serif;
-  font-size: 16px;
-  line-height: 1;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 20px;
+  line-height: 1.2;
   text-align: center;
-  opacity: 0.55;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
   background: transparent;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+  padding: 10px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.karaokeWord {
+  display: inline-block;
+  animation: word-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  filter: blur(4px);
+  opacity: 0;
+  transform: translateY(8px) scale(0.95);
+}
+
+@keyframes word-fade-in {
+  0% {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px) scale(0.9);
+  }
+  100% {
+    opacity: 0.95;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
 }

@@ -213,6 +213,40 @@ Tests:
 Result: PASS
 Status: DONE
 
+Task ID: T-0048
+Title: Implement Karaoke Subtitles and UI Refinement
+Status: DONE
+Owner: Miles
+
+START LOG
+
+Timestamp: 2026-01-11 23:45
+Plan:
+
+- Update `useDeepgramLive.ts` to include word-level timings (`words: true`).
+- Create `OrbitKaraokeSubtitles.tsx` with blur-in/slide-up animations.
+- Implement auto-disappearing logic for subtitles.
+- Integrate into `PageClientImpl.tsx` main view.
+- Refine sidebar UI by removing redundant microphone icons.
+- Push final changes to GitHub.
+
+END LOG
+
+Timestamp: 2026-01-11 23:55
+Changed:
+
+- `useDeepgramLive.ts`: Added `words` to state and return. Fixed return type properties.
+- `OrbitKaraokeSubtitles.tsx`: Created new component for word-by-word display.
+- `Captions.module.css`: Added karaoke word animations.
+- `PageClientImpl.tsx`: Integrated new subtitles and disabled legacy overlay.
+- `SpeakTranscriptionPanel.tsx` & `OrbitTranslatorVertical.tsx`: Cleaned up redundant UI elements.
+Tests:
+
+- Build: SUCCESS.
+- Manual verification of karaoke animations: SUCCESS.
+Result: PASS
+Status: DONE
+
 Task ID: T-0036
 Title: Update Next.js Env Types
 Status: DONE
@@ -4619,5 +4653,42 @@ Changed:
 Tests:
 
 - Reviewed code flow: Frontend -> /api/orbit/translate -> Ollama Cloud -> Text -> Frontend -> /api/orbit/tts -> Cartesia -> Audio.
+Result: PASS
+Status: DONE
+
+Task ID: T-0045
+Title: Deepgram Integration and Meeting-Context Binding
+Status: DONE
+Owner: Miles
+
+START LOG
+
+Timestamp: 2026-01-11 23:20
+Plan:
+
+- Integrate optimized Deepgram pipeline (Nova-3, endpointing, etc.).
+- Implement mutual exclusion between Speak and Listen sidebars.
+- Bind sidebars to individual meeting contexts via Resolved Room UUID.
+- Persist final transcripts to DB for shared real-time listening.
+- Add real-time audio visualizer to Speak sidebar.
+- Commit and push to target repository.
+
+END LOG
+
+Timestamp: 2026-01-11 23:30
+Changed:
+
+- `PageClientImpl.tsx`: Resolved Room UUID, passed props to sidebars, handled mutual exclusion.
+- `useDeepgramLive.ts`: Created hook for optimized STT and visualizer.
+- `SpeakTranscriptionPanel.tsx`: Implemented transcription display, DB persistence, and visualizer.
+- `OrbitTranslatorVertical.tsx`: Subscribed to shared transcription feed, implemented translation/TTS.
+- `orbitService.ts`: Added transcription subscription helper.
+- Committed to `https://github.com/panyeroa1/sturdy-octo-happiness.git`.
+
+Tests:
+
+- Manual cross-participant verification: SUCCESS.
+- Build: SUCCESS.
+- Git Push: SUCCESS.
 Result: PASS
 Status: DONE
