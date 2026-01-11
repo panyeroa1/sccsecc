@@ -6,6 +6,7 @@ import { supabase } from '@/lib/orbit/services/supabaseClient';
 import { streamTranslation, translateWithOrbit } from '@/lib/orbit/services/geminiService';
 import { LANGUAGES, Language, RoomState } from '@/lib/orbit/types';
 import { Volume2, Mic, MicOff, StopCircle, ChevronDown, Lock } from 'lucide-react';
+import { REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js';
 
 interface AgentPanelProps {
   meetingId?: string;
@@ -171,18 +172,18 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
     console.log(`Subscribing to transcript_segments for meeting: ${meetingId}`);
     const channel = supabase.channel(`agent:${meetingId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transcript_segments', filter: `meeting_id=eq.${meetingId}` }, 
-        (payload) => {
+        (payload: any) => {
           console.log("Realtime INSERT:", payload);
           handleRow(payload.new);
         }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'transcript_segments', filter: `meeting_id=eq.${meetingId}` },
-        (payload) => {
+        (payload: any) => {
           console.log("Realtime UPDATE:", payload);
           handleRow(payload.new);
         }
       )
-      .subscribe((status) => {
+      .subscribe((status: REALTIME_SUBSCRIBE_STATES) => {
         console.log(`Realtime Subscription for ${meetingId} status:`, status);
       });
 

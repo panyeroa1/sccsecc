@@ -1,4 +1,4 @@
-
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 
 export interface RoomState {
@@ -107,7 +107,7 @@ export function subscribeToTranscriptions(meetingId: string, callback: (payload:
       schema: 'public',
       table: 'transcriptions',
       filter: `meeting_id=eq.${meetingId}`
-    }, (payload) => callback(payload.new))
+    }, (payload: RealtimePostgresChangesPayload<any>) => callback(payload.new))
     .subscribe();
 }
 
@@ -119,7 +119,7 @@ export function subscribeToUtterances(roomId: string, callback: (utterance: any)
       schema: 'public',
       table: 'utterances',
       filter: `room_id=eq.${roomId}`
-    }, (payload) => callback(payload.new))
+    }, (payload: RealtimePostgresChangesPayload<any>) => callback(payload.new))
     .subscribe();
 }
 
@@ -131,6 +131,6 @@ export function subscribeToRoomState(roomId: string, callback: (state: any) => v
       schema: 'public',
       table: 'room_state',
       filter: `room_id=eq.${roomId}`
-    }, (payload) => callback(payload.new))
+    }, (payload: RealtimePostgresChangesPayload<any>) => callback(payload.new))
     .subscribe();
 }

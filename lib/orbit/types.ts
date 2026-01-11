@@ -142,7 +142,6 @@ export const LANGUAGES: Language[] = [
   { code: 'pcd-BE', name: 'Picard (Belgium)', flag: '🇧🇪' },
 
   // --- African Regional Languages ---
-  { code: 'fr-CI', name: 'French (Ivory Coast)', flag: '🇨🇮' },
   { code: 'fr-CM', name: 'French (Cameroon)', flag: '🇨🇲' },
   { code: 'en-CM', name: 'English (Cameroon)', flag: '🇨🇲' },
   { code: 'byv-CM', name: 'Medumba (Cameroon)', flag: '🇨🇲' },
@@ -284,15 +283,9 @@ export const LANGUAGES: Language[] = [
   { code: 'th-TH', name: 'Thai', flag: '🇹🇭' },
   { code: 'km-KH', name: 'Khmer (Cambodia)', flag: '🇰🇭' },
   { code: 'lo-LA', name: 'Lao', flag: '🇱🇦' },
-  { code: 'tl-PH', name: 'Tagalog (Filipino)', flag: '🇵🇭' },
-  { code: 'fil-PH', name: 'Filipino (Standard)', flag: '🇵🇭' },
 
   // --- Philippines (Major Regional Languages) ---
-  { code: 'ceb-PH', name: 'Cebuano', flag: '🇵🇭' },
-  { code: 'ilo-PH', name: 'Ilocano', flag: '🇵🇭' },
-  { code: 'hil-PH', name: 'Hiligaynon (Ilonggo)', flag: '🇵🇭' },
   { code: 'bcl-PH', name: 'Central Bikol', flag: '🇵🇭' },
-  { code: 'war-PH', name: 'Waray-Waray', flag: '🇵🇭' },
   { code: 'pam-PH', name: 'Kapampangan', flag: '🇵🇭' },
   { code: 'pag-PH', name: 'Pangasinan', flag: '🇵🇭' },
   { code: 'mnd-PH', name: 'Maguindanao', flag: '🇵🇭' },
@@ -328,8 +321,6 @@ export const LANGUAGES: Language[] = [
   { code: 'ff-SN', name: 'Fula (Pulaar / Fulfulde)', flag: '🇸🇳' },
 
   // --- Cameroon (Expanded) ---
-  { code: 'en-CM', name: 'English (Cameroon)', flag: '🇨🇲' },
-  { code: 'fr-CM', name: 'French (Cameroon)', flag: '🇨🇲' },
   { code: 'wes-CM', name: 'Cameroon Pidgin', flag: '🇨🇲' },
   { code: 'ewo-CM', name: 'Ewondo', flag: '🇨🇲' },
   { code: 'dua-CM', name: 'Duala', flag: '🇨🇲' },
@@ -373,7 +364,6 @@ export const LANGUAGES: Language[] = [
   { code: 'ln-CD', name: 'Lingala', flag: '🇨🇩' },
   { code: 'lg-UG', name: 'Luganda', flag: '🇺🇬' },
   { code: 'ki-KE', name: 'Kikuyu', flag: '🇰🇪' },
-  { code: 'wo-SN', name: 'Wolof', flag: '🇸🇳' },
   { code: 'bem-ZM', name: 'Bemba', flag: '🇿🇲' },
   
   // --- Asia / Other ---
@@ -592,4 +582,31 @@ export const LANGUAGES: Language[] = [
   { code: 'dyu', name: 'Jula', flag: '🌍' },
   { code: 'os-x-dgr', name: 'дигорон', flag: '🌍' },
   { code: 'gui', name: 'Guaraní boliviano', flag: '🌍' },
+
+  // --- JW.org Extended Languages (578 additional) ---
+  { code: 'ab', name: 'Abkhazian', flag: '🌍' },
+  { code: 'fub', name: 'Adamawa Fulfulde', flag: '🌍' },
+  { code: 'aa', name: 'Afar', flag: '🌍' },
+  { code: 'agr', name: 'Aguaruna', flag: '🌍' },
+  { code: 'ake', name: 'Akawaio', flag: '🌍' },
+  { code: 'bss', name: 'Akoose', flag: '🌍' },
+  { code: 'alz', name: 'Alur', flag: '🌍' },
+  { code: 'amc', name: 'Amahuaca', flag: '🌍' },
+  { code: 'zpo', name: 'Amatlán Zapotec', flag: '🌍' },
+  { code: 'qva', name: 'Ambo-Pasco Quechua', flag: '🌍' },
+  { code: 'ami', name: 'Amis', flag: '🌍' },
+  { code: 'grc', name: 'Ancient Greek', flag: '🌍' },
+  { code: 'yli', name: 'Angguruk Yali', flag: '🌍' },
+  { code: 'aui', name: 'Anuki', flag: '🌍' },
+  { code: 'ajg', name: 'Aja (Benin)', flag: '🌍' },
+  { code: 'aii', name: 'Assyrian Neo-Aramaic', flag: '🌍' },
+  { code: 'awa', name: 'Awadhi', flag: '🌍' },
+  { code: 'azb', name: 'South Azerbaijani', flag: '🌍' },
+  { code: 'kbr', name: 'Kafa', flag: '🌍' },
+  { code: 'shp', name: 'Shipibo-Conibo', flag: '🌍' },
+  { code: 'ura', name: 'Urarina', flag: '🌍' },
+  { code: 'sah', name: 'Yakut', flag: '🌍' },
+  { code: 'yaa', name: 'Yaminahua', flag: '🌍' },
+  { code: 'dje', name: 'Zarma', flag: '🌍' },
+  { code: 'zyp', name: 'Zhuang', flag: '🌍' },
 ];

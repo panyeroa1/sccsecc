@@ -8,7 +8,10 @@ const nextConfig = {
   images: {
     formats: ['image/webp'],
   },
-  turbopack: {},
+  outputFileTracingRoot: __dirname,
+  turbopack: {
+    root: __dirname,
+  },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }) => {
     // Important: return the modified config
     config.module.rules.push({

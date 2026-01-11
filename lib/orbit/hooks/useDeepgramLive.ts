@@ -171,9 +171,20 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
         });
       }
 
+      // Append token to query params for robust browser connection
+      console.log('🔍 Debug - Raw API Key from env:', process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY?.substring(0, 10) + '...');
+      console.log('🔍 Debug - API Key variable:', apiKey?.substring(0, 10) + '...');
+      
+      if (apiKey) {
+        params.append('token', apiKey.trim());
+        console.log('✅ Token appended to params');
+      } else {
+        console.error('❌ Orbit API Key is missing during URL construction!');
+      }
+
       const wsUrl = `wss://api.deepgram.com/v1/listen?${params.toString()}`;
-      console.log('🔌 Connecting to Orbit Engine:', wsUrl.replace(apiKey || '', '***'));
-      console.log('🔑 Engine Key Validated');
+      console.log('🔌 Full WebSocket URL (token masked):', wsUrl.replace(/token=[^&]+/, 'token=***'));
+      console.log('🔑 Token included in URL:', wsUrl.includes('token='));
 
       const socket = new WebSocket(wsUrl);
       socketRef.current = socket;

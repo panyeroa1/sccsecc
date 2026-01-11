@@ -502,7 +502,8 @@ function VideoConferenceComponent(props: {
 
   const { roomName } = useParams<{ roomName: string }>();
   const [e2eeSetupComplete, setE2eeSetupComplete] = React.useState(false);
-  const [activeSidebarPanel, setActiveSidebarPanel] = React.useState<SidebarPanel>('participants');
+  // Default to 'translator' (Listen tab) for joining participants, 'participants' for hosts
+  const [activeSidebarPanel, setActiveSidebarPanel] = React.useState<SidebarPanel>('translator');
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
   const [voiceFocusEnabled, setVoiceFocusEnabled] = React.useState(true);
   const [isGridView, setIsGridView] = React.useState(false);
@@ -1064,7 +1065,7 @@ function VideoConferenceComponent(props: {
       <RoomContext.Provider value={room}>
         <LayoutContextProvider value={layoutContext}>
           <KeyboardShortcuts />
-          <RoomAudioRenderer />
+          <RoomAudioRenderer volume={activeSidebarPanel === 'translator' ? 0 : 1} />
           <ConnectionStateToast />
           
           {/* Main video grid */}
