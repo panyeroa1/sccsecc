@@ -5,9 +5,9 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("❌ Missing Supabase credentials in environment variables.");
-  console.error("SUPABASE_URL:", SUPABASE_URL ? 'Present' : 'Missing');
-  console.error("SUPABASE_KEY:", SUPABASE_KEY ? 'Present' : 'Missing');
+  console.warn("⚠️ Supabase credentials not found. Database features will be disabled.");
+  // console.debug("SUPABASE_URL:", SUPABASE_URL ? 'Present' : 'Missing');
+  // console.debug("SUPABASE_KEY:", SUPABASE_KEY ? 'Present' : 'Missing');
 }
 
 // Create a safe client that won't crash if env vars are missing
