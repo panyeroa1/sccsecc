@@ -23,13 +23,20 @@ export default function Page() {
         }
 
         const { data, error } = await supabase.auth.signInAnonymously();
-        if (error) throw error;
+        if (error) {
+          console.warn('Supabase auth failed (likely invalid key), switching to OFFLINE mode:', error.message);
+          setUserId('GUEST-' + Math.random().toString(36).substr(2, 4).toUpperCase());
+          setAuthStatus('OFFLINE (Auth Error)');
+          return;
+        }
+
         if (data?.user) {
           setUserId(data.user.id.slice(0, 8));
           setAuthStatus('ONLINE');
         }
       } catch (e) {
         console.error('Auth boot error:', e);
+        setUserId('GUEST-' + Math.random().toString(36).substr(2, 4).toUpperCase());
         setAuthStatus('OFFLINE');
       }
     }

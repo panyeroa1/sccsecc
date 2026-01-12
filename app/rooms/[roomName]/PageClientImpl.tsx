@@ -620,6 +620,8 @@ function RoomInner(props: {
   }, [isListening]);
   const [hearRawAudio, setHearRawAudio] = React.useState(false);
   const { playClick, playToggle } = useSound();
+  const { localParticipant } = useLocalParticipant();
+  const remoteParticipants = useRemoteParticipants();
 
   const { activeSpeakerId: floorSpeakerId, isFloorHolder, claimFloor, grantFloor } = useMeetingFloor(roomName || '', user?.id || '');
   const [isTranscriptionEnabled, setIsTranscriptionEnabled] = React.useState(true);
@@ -878,15 +880,13 @@ function RoomInner(props: {
     setActiveSidebarPanel(panel);
   };
 
-  const renderSidebarPanel = () => {
+  const SidebarPanel = () => {
     if (sidebarCollapsed) return null;
     switch (activeSidebarPanel) {
       case 'participants': return <ParticipantsPanel alias="Participants" waitingRoomEnabled={waitingRoomEnabled} onWaitingRoomToggle={setWaitingRoomEnabled} waitingList={waitingList} onAdmitParticipant={admitParticipant} onRejectParticipant={rejectParticipant} admittedIds={admittedIds} hostIdentity={hostId || undefined} />;
       case 'chat': return <ChatPanel />;
       case 'settings': return <SettingsPanel voiceFocusEnabled={voiceFocusEnabled} onVoiceFocusChange={setVoiceFocusEnabled} vadEnabled={vadEnabled} onVadChange={setVadEnabled} noiseSuppressionEnabled={noiseSuppressionEnabled} onNoiseSuppressionChange={setNoiseSuppressionEnabled} echoCancellationEnabled={echoCancellationEnabled} onEchoCancellationChange={setEchoCancellationEnabled} autoGainEnabled={autoGainEnabled} onAutoGainChange={setAutoGainEnabled} />;
       case 'orbit': {
-        const { localParticipant } = useLocalParticipant();
-        const remoteParticipants = useRemoteParticipants();
         const total = (remoteParticipants?.length || 0) + (localParticipant ? 1 : 0);
         const speaking = (remoteParticipants?.filter(p => p.isSpeaking).length || 0) + (localParticipant?.isSpeaking ? 1 : 0);
         const listening = total - speaking;
@@ -960,7 +960,7 @@ function RoomInner(props: {
         <div className={roomStyles.videoGridContainer}><VideoGrid allowedParticipantIds={admittedIds} isGridView={isGridView} /></div>
         <div className={`${roomStyles.chatPanel} ${sidebarCollapsed ? roomStyles.chatPanelCollapsed : ''}`}>
           <button className={roomStyles.sidebarToggle} onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}>{sidebarCollapsed ? <ChevronLeftIcon /> : <ChevronRightIcon />}</button>
-          <div className={roomStyles.sidebarContent} style={{ overflowY: 'auto', overflowX: 'hidden' }}>{renderSidebarPanel()}</div>
+          <div className={roomStyles.sidebarContent} style={{ overflowY: 'auto', overflowX: 'hidden' }}><SidebarPanel /></div>
         </div>
         <HostCaptionOverlay 
           words={deepgram.words} 

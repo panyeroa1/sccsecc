@@ -371,9 +371,15 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
 
     // Add participant to database if we have room data
     if (roomData && supabase) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await addParticipant(user.id, username.trim(), roomData.id);
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) {
+          console.warn('Supabase getUser failed (likely invalid key):', authError.message);
+        } else if (user) {
+          await addParticipant(user.id, username.trim(), roomData.id);
+        }
+      } catch (e) {
+        console.error('Supabase getUser exception:', e);
       }
     }
 
