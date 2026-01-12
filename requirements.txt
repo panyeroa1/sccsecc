@@ -1,2 +1,5 @@
-livekit-agents[silero,openai,elevenlabs,deepgram]
+livekit-agents[silero,openai,cartesia]
 python-dotenv
+faster-whisper
+google-cloud-aiplatform
+livekit-plugins-google
