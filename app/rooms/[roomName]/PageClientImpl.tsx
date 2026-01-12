@@ -321,6 +321,7 @@ export function PageClientImpl(props: {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails>();
   const [preJoinChoices, setPreJoinChoices] = React.useState<ExtendedUserChoices>();
   const [isLoading, setIsLoading] = React.useState(false);
+  const [connectionError, setConnectionError] = React.useState<string | null>(null);
 
   const {
     userChoices,
@@ -402,10 +403,16 @@ export function PageClientImpl(props: {
           throw new Error(errorText || 'Failed to fetch connection details');
         }
         const data = (await response.json()) as ConnectionDetails;
-        if (isMounted) setConnectionDetails(data);
+        if (isMounted) {
+          setConnectionDetails(data);
+          setConnectionError(null);
+        }
       } catch (error) {
         console.error('Connection details error', error);
-        if (isMounted) setConnectionDetails(undefined);
+        if (isMounted) {
+          setConnectionDetails(undefined);
+          setConnectionError(error instanceof Error ? error.message : 'Failed to load connection details');
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -419,18 +426,41 @@ export function PageClientImpl(props: {
   return (
     <main data-lk-theme="default" className="lk-room-container">
       {connectionDetails === undefined || preJoinChoices === undefined ? (
-        <CustomPreJoin
-          roomName={props.roomName}
-          defaults={{
-            username: preJoinDefaults.username,
-            videoEnabled: preJoinDefaults.videoEnabled,
-            audioEnabled: preJoinDefaults.audioEnabled,
-            videoDeviceId: preJoinDefaults.videoDeviceId,
-            audioDeviceId: preJoinDefaults.audioDeviceId,
-          }}
+        <div style={{ position: 'relative' }}>
+          {connectionError && (
+            <div style={{
+              position: 'fixed',
+              top: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9999,
+              backgroundColor: 'rgba(255, 0, 0, 0.9)',
+              color: 'white',
+              padding: '12px 24px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              textAlign: 'center',
+              maxWidth: '80%',
+              fontSize: '14px',
+              fontWeight: 600,
+              border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              ⚠️ {connectionError}
+            </div>
+          )}
+          <CustomPreJoin
+            roomName={props.roomName}
+            defaults={{
+              username: preJoinDefaults.username,
+              videoEnabled: preJoinDefaults.videoEnabled,
+              audioEnabled: preJoinDefaults.audioEnabled,
+              videoDeviceId: preJoinDefaults.videoDeviceId,
+              audioDeviceId: preJoinDefaults.audioDeviceId,
+            }}
           onSubmit={handlePreJoinSubmit}
           onError={handlePreJoinError}
         />
+        </div>
       ) : (
         <VideoConferenceComponent
           connectionDetails={connectionDetails}

@@ -256,6 +256,10 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
   const fetchOrCreateRoom = useCallback(async () => {
     try {
       // Check if room exists
+      if (!supabase) {
+        console.warn('Supabase not initialized, skipping database fetch');
+        return null;
+      }
       const { data: existingRoom, error: fetchError } = await supabase
         .from('rooms')
         .select('id, room_code, name')
@@ -294,6 +298,7 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
   // Add participant to room
   const addParticipant = useCallback(async (userId: string, displayName: string, roomId: string) => {
     try {
+      if (!supabase) return;
       const { error } = await supabase
         .from('participants')
         .upsert({
@@ -365,7 +370,7 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
     }
 
     // Add participant to database if we have room data
-    if (roomData) {
+    if (roomData && supabase) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await addParticipant(user.id, username.trim(), roomData.id);

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const metadata = request.nextUrl.searchParams.get('metadata') ?? '';
     const region = request.nextUrl.searchParams.get('region');
     if (!ORBIT_AI_URL) {
-      throw new Error('ORBIT_AI_URL is not defined');
+      throw new Error('LiveKit/Orbit AI Server URL (LIVEKIT_URL/ORBIT_AI_URL) is not defined in environment variables.');
     }
     const orbitServerUrl = region ? getOrbitAIURL(ORBIT_AI_URL, region) : ORBIT_AI_URL;
     let randomParticipantPostfix = request.cookies.get(COOKIE_KEY)?.value;
