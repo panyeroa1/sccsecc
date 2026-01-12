@@ -77,6 +77,15 @@ export function useOrbitMic(options: UseOrbitMicOptions = {}) {
           video: true,
           audio: true
         });
+
+        // Validate audio track presence
+        if (stream.getAudioTracks().length === 0) {
+            alert("No system audio detected. Please ensure you checked 'Share tab audio' or 'Share system audio'.");
+            stream.getTracks().forEach(t => t.stop());
+            stop();
+            return;
+        }
+
       } else {
         // Request microphone
         stream = await navigator.mediaDevices.getUserMedia({ 
@@ -86,10 +95,13 @@ export function useOrbitMic(options: UseOrbitMicOptions = {}) {
       
       streamRef.current = stream;
 
+      // Extract only audio tracks for processing (Mic is already audio-only, Screen might have video)
+      const audioStream = new MediaStream(stream.getAudioTracks());
+
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
       
-      const sourceNode = audioContext.createMediaStreamSource(stream);
+      const sourceNode = audioContext.createMediaStreamSource(audioStream);
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 128;
       sourceNode.connect(analyser);
@@ -101,7 +113,7 @@ export function useOrbitMic(options: UseOrbitMicOptions = {}) {
 
       socket.onopen = () => {
         const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-        const mediaRecorder = new MediaRecorder(stream, { mimeType });
+        const mediaRecorder = new MediaRecorder(audioStream, { mimeType });
         mediaRecorderRef.current = mediaRecorder;
         
         mediaRecorder.ondataavailable = (e) => {
