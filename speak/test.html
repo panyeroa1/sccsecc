@@ -20,6 +20,9 @@
       --radius: 8px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --orb-size: 75px;
+
+      /* Layering */
+      --orbit-z: 100000;
     }
 
     *{ box-sizing:border-box; }
@@ -36,8 +39,35 @@
       overflow:hidden;
     }
 
+    /* =========================================================
+       ✅ ROOT CONTAINER (Fix: host containment for overlay/sidebar/orb)
+       - Root covers the viewport OR the host container (when embedded)
+       - Root itself doesn't block clicks except on UI elements
+    ========================================================= */
+    .orbitRoot{
+      position: fixed;
+      inset: 0;
+      z-index: var(--orbit-z);
+      pointer-events: none;
+    }
+    .orbitRoot.in-host-root{
+      position: absolute;
+      inset: 0;
+    }
+    body.embedded .orbitRoot{
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Allow interaction only on actual UI elements */
+    .orbitRoot .overlay,
+    .orbitRoot .sidebar,
+    .orbitRoot .orb{
+      pointer-events: auto;
+    }
+
     .overlay{
-      position:fixed;
+      position:absolute; /* ✅ was fixed; now contained in root/host */
       left:12px;
       right:12px;
       top:12px;
@@ -51,14 +81,6 @@
       -webkit-backdrop-filter: blur(6px);
       backdrop-filter: blur(6px);
       transition: height 0.3s ease;
-    }
-
-    .overlay.in-host{
-      position:absolute;
-      left:12px;
-      right:12px;
-      top:12px;
-      max-width: none;
     }
 
     body.embedded .overlay{
@@ -148,7 +170,7 @@
       padding: 6px 12px 10px 12px;
     }
 
-    /* ✅ TRANSLATED TEXT STYLE (Requested) */
+    /* ✅ TRANSLATED TEXT STYLE */
     .bigText{
       font-size: 14px;          /* requested 14px */
       color: #ffffff;           /* requested white */
@@ -214,12 +236,13 @@
     .collapsed .content{ display:none; }
     .collapsed .chevronBtn{ transform: rotate(180deg); }
 
+    /* ✅ Sidebar contained in root/host (was fixed) */
     .sidebar{
-      position: fixed;
+      position: absolute;
       left: 12px;
       top: 50%;
       transform: translateY(-50%);
-      z-index: 10000;
+      z-index: calc(var(--orbit-z) + 2);
     }
 
     .sidebarBtn{
@@ -246,8 +269,9 @@
       height:24px;
     }
 
+    /* ✅ Orb contained in root/host (was fixed) */
     .orb{
-      position: fixed;
+      position: absolute;
       right: 22px;
       bottom: 22px;
       width: var(--orb-size);
@@ -257,10 +281,11 @@
       align-items:center;
       justify-content:center;
       cursor: grab;
-      z-index: 10001;
+      z-index: calc(var(--orbit-z) + 3);
       -webkit-user-select:none;
       user-select:none;
       touch-action: none;
+      outline: none;
     }
 
     .orb.dragging{ cursor: grabbing; }
@@ -381,99 +406,119 @@
 
 <audio id="tts" autoplay></audio>
 
-<div class="sidebar">
-  <button id="orbitSidebarBtn" class="sidebarBtn" type="button" title="Orbit Translator" aria-label="Orbit Translator">
-    <svg class="sidebarIcon" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <circle cx="20" cy="24" r="10" stroke="currentColor" stroke-width="2" />
-      <path d="M6 28c7-6 21-9 36-5" stroke="currentColor" stroke-width="2" opacity="0.7" />
-      <circle cx="36" cy="14" r="3" fill="currentColor" opacity="0.7" />
-    </svg>
-    <span>Orbit</span>
-  </button>
-</div>
+<!-- ✅ Root container so overlay + sidebar + orb are always inside host viewport when embedded -->
+<div id="orbitRoot" class="orbitRoot">
 
-<div id="overlay" class="overlay">
-  <div class="topbar">
-    <div class="leftGroup">
-      <div class="pill">
-        <button id="toggleListenBtn" type="button" style="display:inline-flex;align-items:center;gap:8px;">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M4 5h7m-7 4h5m7-4h4m-4 0v14m0-14l-4 4m4-4l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
-              <path d="M5 19h6m-6 0v-4m0 4l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
-            </svg>
-          </span>
-          <span id="translatingLabel">Translating</span>
+  <div class="sidebar">
+    <button id="orbitSidebarBtn" class="sidebarBtn" type="button" title="Orbit Translator" aria-label="Orbit Translator">
+      <svg class="sidebarIcon" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <circle cx="20" cy="24" r="10" stroke="currentColor" stroke-width="2" />
+        <path d="M6 28c7-6 21-9 36-5" stroke="currentColor" stroke-width="2" opacity="0.7" />
+        <circle cx="36" cy="14" r="3" fill="currentColor" opacity="0.7" />
+      </svg>
+      <span>Orbit</span>
+    </button>
+  </div>
+
+  <div id="overlay" class="overlay">
+    <div class="topbar">
+      <div class="leftGroup">
+        <div class="pill">
+          <button id="toggleListenBtn" type="button" style="display:inline-flex;align-items:center;gap:8px;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M4 5h7m-7 4h5m7-4h4m-4 0v14m0-14l-4 4m4-4l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
+                <path d="M5 19h6m-6 0v-4m0 4l4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
+              </svg>
+            </span>
+            <span id="translatingLabel">Translating</span>
+          </button>
+        </div>
+
+        <div class="pill">
+          <select id="srcLang" aria-label="Source language" title="Source language"></select>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="pill">
+          <select id="tgtLang" aria-label="Target language" title="Target language"></select>
+          <span style="opacity:.75;font-size:10px;">▾</span>
+        </div>
+      </div>
+
+      <div class="rightGroup">
+        <button id="fsBtn" class="iconBtn" type="button" title="Fullscreen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
+          </svg>
+        </button>
+        <button id="closeBtn" class="iconBtn" type="button" title="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.92"/>
+          </svg>
         </button>
       </div>
+    </div>
 
-      <div class="pill">
-        <select id="srcLang" aria-label="Source language" title="Source language"></select>
-      </div>
+    <div class="content">
+      <div id="bigText" class="bigText">Tap “Translating” to start listening…</div>
 
-      <div class="arrow">→</div>
-
-      <div class="pill">
-        <select id="tgtLang" aria-label="Target language" title="Target language"></select>
-        <span style="opacity:.75;font-size:10px;">▾</span>
+      <div class="subline">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="dot" class="statusDot"></span>
+          <span id="status">Idle</span>
+        </div>
+        <div id="debug" style="opacity:.85;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
       </div>
     </div>
 
-    <div class="rightGroup">
-      <button id="fsBtn" class="iconBtn" type="button" title="Fullscreen">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
-        </svg>
-      </button>
-      <button id="closeBtn" class="iconBtn" type="button" title="Close">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.92"/>
-        </svg>
-      </button>
+    <div class="chevronWrap">
+      <button id="chevBtn" class="chevronBtn" type="button">⌄</button>
     </div>
   </div>
 
-  <div class="content">
-    <div id="bigText" class="bigText">Tap “Translating” to start listening…</div>
-
-    <div class="subline">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span id="dot" class="statusDot"></span>
-        <span id="status">Idle</span>
+  <!-- ✅ Orb added (Fix: orb markup was missing; visualizer bars now exist) -->
+  <div id="orb" class="orb" tabindex="0" role="button" aria-label="Toggle overlay">
+    <div class="orbCore" aria-hidden="true"></div>
+    <div class="orbViz" aria-hidden="true">
+      <div class="orbVizRow" data-viz="in">
+        <span class="orbBar"></span><span class="orbBar"></span><span class="orbBar"></span><span class="orbBar"></span>
+        <span class="orbBar"></span><span class="orbBar"></span><span class="orbBar"></span>
       </div>
-      <div id="debug" style="opacity:.85;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+      <div class="orbVizRow" data-viz="out">
+        <span class="orbBar"></span><span class="orbBar"></span><span class="orbBar"></span><span class="orbBar"></span>
+        <span class="orbBar"></span><span class="orbBar"></span><span class="orbBar"></span>
+      </div>
     </div>
   </div>
 
-  <div class="chevronWrap">
-    <button id="chevBtn" class="chevronBtn" type="button">⌄</button>
-  </div>
-</div>
-
-
+</div><!-- /orbitRoot -->
 
 <script>
 /* =========================================================
-   1. Host Embedding
+   1. Host Embedding (UPDATED: move orbitRoot, not just overlay)
 ========================================================= */
 (() => {
   const host = document.querySelector("[data-translate-overlay-host]");
-  const overlay = document.getElementById("overlay");
-  if (host) {
+  const root = document.getElementById("orbitRoot");
+
+  if (host && root) {
     const cs = getComputedStyle(host);
     if (cs.position === "static") host.style.position = "relative";
-    host.appendChild(overlay);
-    overlay.classList.add("in-host");
+    host.appendChild(root);
+    root.classList.add("in-host-root");
   }
+
   let embedded = false;
   try {
     embedded = window.self !== window.top;
   } catch (_) {
     embedded = true;
   }
-  if (!host && embedded && overlay) {
+
+  if (!host && embedded) {
     document.body.classList.add("embedded");
-    overlay.classList.add("embedded");
   }
 })();
 
@@ -497,9 +542,7 @@ let ttsQueue = [];
 let ttsBusy = false;
 
 /* =========================================================
-   ✅ ORIGINAL AUDIO DUCKING (20%) DURING TTS (Requested)
-   - Ducks all other <audio>/<video> elements except #tts
-   - Fast smooth fade down/up for clean transitions
+   ✅ ORIGINAL AUDIO DUCKING (20%) DURING TTS
 ========================================================= */
 const DUCK_TARGET = 0.20;
 const DUCK_FADE_MS = 120;
@@ -528,7 +571,7 @@ function rampVolume(el, to, duration) {
   const start = performance.now();
   const tick = (now) => {
     const t = Math.min(1, (now - start) / duration);
-    const eased = t * (2 - t); // ease-out for fast, smooth fade
+    const eased = t * (2 - t); // ease-out
     try {
       el.volume = from + (target - from) * eased;
     } catch (_) {}
@@ -543,7 +586,7 @@ function rampVolume(el, to, duration) {
 
 function duckOtherMedia() {
   duckRefCount++;
-  if (duckRefCount > 1) return; // already ducked
+  if (duckRefCount > 1) return;
 
   const els = listOtherMediaEls();
   for (const el of els) {
@@ -554,7 +597,6 @@ function duckOtherMedia() {
           muted: !!el.muted
         });
       }
-      // If it was muted, keep muted; else fade to 20%
       if (!el.muted) {
         const target = Math.min(DUCK_TARGET, (typeof el.volume === "number") ? el.volume : 1);
         rampVolume(el, target, DUCK_FADE_MS);
@@ -576,6 +618,23 @@ function restoreOtherMedia() {
     } catch (_) {}
   }
   duckStore.clear();
+}
+
+function forceRestoreOtherMedia() {
+  // Ensures we always restore after a forced stop
+  duckRefCount = 1;
+  restoreOtherMedia();
+}
+
+/* =========================================================
+   ✅ Object URL lifecycle (Fix: prevent memory leak)
+========================================================= */
+let currentTtsObjectUrl = null;
+function revokeCurrentTtsUrl() {
+  if (currentTtsObjectUrl) {
+    try { URL.revokeObjectURL(currentTtsObjectUrl); } catch(_) {}
+    currentTtsObjectUrl = null;
+  }
 }
 
 /* =========================================================
@@ -642,16 +701,23 @@ function splitSpeakSegments(text) {
 function enqueueTTS(text, ttsLangCode) {
   const segs = splitSpeakSegments(text);
   if (!segs.length) return;
-  for (const s of segs) ttsQueue.push({ text: s, lang: ttsLangCode || null });
+  for (const s of segs) ttsQueue.push({ text: s, lang: ttsLangCode || "" });
   processTTSQueue().catch(()=>{});
 }
 
-// Fetch Bytes
-async function orbitBytes(transcript) {
+/* =========================================================
+   ✅ Send lang to backend (Fix: previously ignored)
+========================================================= */
+async function orbitBytes(transcript, ttsLangCode) {
   const res = await fetch(ORBIT_TTS_CFG.endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: transcript, provider: ORBIT_TTS_CFG.provider })
+    body: JSON.stringify({
+      text: transcript,
+      provider: ORBIT_TTS_CFG.provider,
+      lang: ttsLangCode || null,          // ✅ backend can use this if supported
+      tts_lang: ttsLangCode || null       // ✅ duplicate key for compatibility
+    })
   });
 
   if (!res.ok) {
@@ -665,7 +731,10 @@ async function orbitBytes(transcript) {
 // Play Blob and Return Success/Fail
 async function setAndPlayBlob(blob) {
   return new Promise((resolve) => {
+    revokeCurrentTtsUrl(); // ✅ prevent object URL leak on rapid calls
     const url = URL.createObjectURL(blob);
+    currentTtsObjectUrl = url;
+
     let done = false;
 
     ensureOutputAnalyser();
@@ -682,6 +751,7 @@ async function setAndPlayBlob(blob) {
       if (done) return;
       done = true;
       cleanup();
+      revokeCurrentTtsUrl(); // ✅ cleanup on error
       resolve(false);
     };
 
@@ -695,6 +765,7 @@ async function setAndPlayBlob(blob) {
       } catch {
         done = true;
         cleanup();
+        revokeCurrentTtsUrl(); // ✅ cleanup if play rejected
         resolve(false);
       }
     };
@@ -715,21 +786,25 @@ async function setAndPlayBlob(blob) {
 // Wait for the 'ended' event
 function waitForEnded() {
   return new Promise(resolve => {
-    const onEnd = () => resolve();
+    const onEnd = () => {
+      revokeCurrentTtsUrl(); // ✅ release object URL after playback
+      resolve();
+    };
     ttsAudio.addEventListener("ended", onEnd, { once: true });
 
     setTimeout(() => {
-      if(!ttsAudio.paused) return;
+      // fallback resolve if ended doesn't fire
+      revokeCurrentTtsUrl();
       resolve();
-    }, (ttsAudio.duration * 1000) + 1000 || 2000);
+    }, (isFinite(ttsAudio.duration) ? (ttsAudio.duration * 1000 + 1000) : 2000));
   });
 }
 
-// Main Play Function (never "skips turn": sequential + retries)
-async function speakText(text) {
+// Main Play Function (sequential + retries)
+async function speakText(text, ttsLangCode) {
   duckOtherMedia();
   try {
-    const blob = await orbitBytes(text);
+    const blob = await orbitBytes(text, ttsLangCode);
     const ok = await setAndPlayBlob(blob);
     if (!ok) throw new Error("Audio decode failed.");
     await waitForEnded();
@@ -749,8 +824,7 @@ async function processTTSQueue() {
     const next = ttsQueue.shift();
     try {
       setStatus("Speaking…", "on");
-      await speakText(next.text);
-
+      await speakText(next.text, next.lang);
       await new Promise(r => setTimeout(r, 500));
     } catch (e) {
       ui.debug.textContent = "TTS Err: " + String(e?.message || e);
@@ -770,6 +844,7 @@ let recognizer = null;
 let listening = false;
 
 const ui = {
+  root: document.getElementById("orbitRoot"),
   overlay: document.getElementById("overlay"),
   bigText: document.getElementById("bigText"),
   status: document.getElementById("status"),
@@ -793,14 +868,49 @@ function setStatus(text, mode="idle") {
   if (mode === "err") ui.dot.classList.add("err");
 }
 
+/* =========================================================
+   ✅ Hard stop (Fix: closing/hiding could leave TTS running)
+========================================================= */
+function stopAllTTS() {
+  try { ttsQueue = []; } catch(_) {}
+  try { ttsBusy = false; } catch(_) {}
+
+  try { ttsAudio.pause(); } catch(_) {}
+  try { ttsAudio.currentTime = 0; } catch(_) {}
+
+  // Release URL + reset element
+  revokeCurrentTtsUrl();
+  try { ttsAudio.removeAttribute("src"); } catch(_) {}
+  try { ttsAudio.load(); } catch(_) {}
+
+  forceRestoreOtherMedia();
+}
+
+function stopEverything() {
+  listening = false;
+
+  try { recognizer && recognizer.stop(); } catch(_) {}
+  stopInputAnalyser();
+  stopAllTTS();
+
+  setStatus("Idle");
+  ui.translatingLabel.textContent = "Translating";
+}
+
 function setOverlayVisible(isVisible) {
   if (!ui.overlay) return;
   ui.overlay.hidden = !isVisible;
+
+  // ✅ If user hides the overlay, stop audio + listening (recommendation)
+  if (!isVisible) {
+    stopEverything();
+  }
 }
 
 function toggleOverlayVisible() {
   if (!ui.overlay) return;
-  setOverlayVisible(ui.overlay.hidden);
+  if (ui.overlay.hidden) setOverlayVisible(true);
+  else setOverlayVisible(false);
 }
 
 const orbViz = {
@@ -894,7 +1004,6 @@ function startOrbVisualizer() {
   };
   loop();
 }
-
 
 function ensureRecognizer() {
   if (!SpeechRecognition) {
@@ -1053,6 +1162,9 @@ async function startListening() {
   if (!ensureRecognizer()) return;
   if (listening) return;
 
+  // Ensure UI visible
+  ui.overlay.hidden = false;
+
   await unlockAudioOnce();
   await ensureInputAnalyser();
 
@@ -1097,11 +1209,15 @@ ui.srcLang.addEventListener("change", () => {
 });
 
 ui.tgtLang.addEventListener("change", () => scheduleTranslateNow(true));
+
 ui.closeBtn.addEventListener("click", () => {
-  stopListening();
+  // ✅ Close = hard stop + hide
+  stopEverything();
   setOverlayVisible(false);
 });
+
 ui.chevBtn.addEventListener("click", () => ui.overlay.classList.toggle("collapsed"));
+
 ui.fsBtn.addEventListener("click", async () => {
   try { document.fullscreenElement ? document.exitFullscreen() : ui.overlay.requestFullscreen(); } catch(_){}
 });
@@ -1112,7 +1228,10 @@ if (ui.orbitSidebarBtn) {
   });
 }
 
-if (ui.orb) {
+/* =========================================================
+   ✅ Orb drag within root bounds (Fix: was using window bounds)
+========================================================= */
+if (ui.orb && ui.root) {
   let orbDragging = false;
   let orbMoved = false;
   let startX = 0;
@@ -1120,32 +1239,40 @@ if (ui.orb) {
   let startLeft = 0;
   let startTop = 0;
 
+  const getRootRect = () => ui.root.getBoundingClientRect();
+
   const setOrbPosition = (left, top) => {
     const size = ui.orb.offsetWidth || 75;
-    const maxLeft = window.innerWidth - size;
-    const maxTop = window.innerHeight - size;
+    const rootRect = getRootRect();
+    const maxLeft = Math.max(0, rootRect.width - size);
+    const maxTop  = Math.max(0, rootRect.height - size);
     const nextLeft = Math.max(0, Math.min(left, maxLeft));
-    const nextTop = Math.max(0, Math.min(top, maxTop));
+    const nextTop  = Math.max(0, Math.min(top, maxTop));
+    ui.orb.style.right = "auto";
+    ui.orb.style.bottom = "auto";
     ui.orb.style.left = `${nextLeft}px`;
-    ui.orb.style.top = `${nextTop}px`;
+    ui.orb.style.top  = `${nextTop}px`;
   };
 
-  const clampOrbToViewport = () => {
+  const clampOrbToRoot = () => {
+    const rootRect = getRootRect();
     const rect = ui.orb.getBoundingClientRect();
-    setOrbPosition(rect.left, rect.top);
+    const relLeft = rect.left - rootRect.left;
+    const relTop  = rect.top  - rootRect.top;
+    setOrbPosition(relLeft, relTop);
   };
 
   ui.orb.addEventListener("pointerdown", (e) => {
     if (e.button && e.button !== 0) return;
+
+    const rootRect = getRootRect();
     const rect = ui.orb.getBoundingClientRect();
-    ui.orb.style.right = "auto";
-    ui.orb.style.bottom = "auto";
-    ui.orb.style.left = `${rect.left}px`;
-    ui.orb.style.top = `${rect.top}px`;
-    startLeft = rect.left;
-    startTop = rect.top;
+
+    startLeft = rect.left - rootRect.left;
+    startTop  = rect.top  - rootRect.top;
     startX = e.clientX;
     startY = e.clientY;
+
     orbDragging = true;
     orbMoved = false;
     ui.orb.classList.add("dragging");
@@ -1164,7 +1291,8 @@ if (ui.orb) {
     if (!orbDragging) return;
     orbDragging = false;
     ui.orb.classList.remove("dragging");
-    ui.orb.releasePointerCapture(e.pointerId);
+    try { ui.orb.releasePointerCapture(e.pointerId); } catch(_) {}
+
     if (!orbMoved) {
       toggleOverlayVisible();
     }
@@ -1180,8 +1308,13 @@ if (ui.orb) {
     }
   });
 
-  clampOrbToViewport();
-  window.addEventListener("resize", clampOrbToViewport);
+  clampOrbToRoot();
+
+  window.addEventListener("resize", clampOrbToRoot);
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => clampOrbToRoot());
+    ro.observe(ui.root);
+  }
 }
 
 /* =========================================================

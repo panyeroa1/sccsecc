@@ -41,24 +41,24 @@ export async function POST(request: Request) {
     }
 
     if (provider === 'cartesia') {
-      const apiKey = process.env.CARTESIA_API_KEY;
+      const apiKey = process.env.ORBIT_API_KEY || process.env.CARTESIA_API_KEY;
       if (!apiKey) {
-        return new NextResponse('Cartesia API key not configured', { status: 503 });
+        return new NextResponse('Orbit API key not configured', { status: 503 });
       }
 
       const response = await fetch("https://api.cartesia.ai/tts/bytes", {
          method: "POST",
          headers: {
-           "Cartesia-Version": "2025-04-16",
+           "Cartesia-Version": process.env.CARTESIA_VERSION || "2025-04-16",
            "X-API-Key": apiKey,
            "Content-Type": "application/json"
          },
          body: JSON.stringify({
-            model_id: "sonic-3",
+            model_id: process.env.CARTESIA_MODEL_ID || "sonic-3",
             transcript: text,
             voice: {
               mode: "id",
-              id: requestedVoiceId || "9c7e6604-52c6-424a-9f9f-2c4ad89f3bb9"
+              id: requestedVoiceId || process.env.CARTESIA_VOICE_ID || "9c7e6604-52c6-424a-9f9f-2c4ad89f3bb9"
             },
             output_format: {
               container: "wav",

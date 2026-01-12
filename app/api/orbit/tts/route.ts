@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const { text } = await request.json();
     
-    const apiKey = process.env.CARTESIA_API_KEY;
+    const apiKey = process.env.ORBIT_API_KEY || process.env.CARTESIA_API_KEY;
     if (!apiKey) {
       console.warn("Orbit API key not configured, returning mock audio (sine wave)");
       // Generate 1s sine wave at 440Hz
@@ -28,16 +28,16 @@ export async function POST(request: Request) {
     const response = await fetch("https://api.cartesia.ai/tts/bytes", {
       method: "POST",
       headers: {
-        "Cartesia-Version": "2025-04-16",
+        "Cartesia-Version": process.env.CARTESIA_VERSION || "2025-04-16",
         "X-API-Key": apiKey,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model_id: "sonic-3-latest",
+        model_id: process.env.CARTESIA_MODEL_ID || "sonic-3-latest",
         transcript: text,
         voice: {
           mode: "id",
-          id: "dda33d93-9f12-4a59-806e-a98279ebf050"
+          id: process.env.CARTESIA_VOICE_ID || "dda33d93-9f12-4a59-806e-a98279ebf050"
         },
         output_format: {
           container: "wav",

@@ -1,6 +1,6 @@
-# Eburon Meet
+# Success Class powered by Orbit SI
 
-**Eburon Meet** is a premium, high-performance video conferencing platform designed for seamless communication and real-time collaboration. Built with a focus on visual excellence and robust functionality, Eburon Meet provides a state-of-the-art interface for moderating global classes and meetings.
+**Success Class** is a premium, high-performance video conferencing platform designed for seamless communication and real-time collaboration. Built with a focus on visual excellence and robust functionality, Success Class provides a state-of-the-art interface for moderating global classes and meetings, powered by Orbit SI.
 
 ---
 

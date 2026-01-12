@@ -218,29 +218,13 @@
       </div>
 
       <div class="pill">
-        <select id="srcLang" aria-label="Source language">
-          <option value="en" selected>English</option>
-          <option value="nl">Dutch</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="es">Spanish</option>
-          <option value="tr">Turkish</option>
-          <option value="tl">Tagalog</option>
-        </select>
+        <select id="srcLang" aria-label="Source language"></select>
       </div>
 
       <div class="arrow">→</div>
 
       <div class="pill">
-        <select id="tgtLang" aria-label="Target language">
-          <option value="nl" selected>Dutch</option>
-          <option value="en">English</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="es">Spanish</option>
-          <option value="tr">Turkish</option>
-          <option value="tl">Tagalog</option>
-        </select>
+        <select id="tgtLang" aria-label="Target language"></select>
         <span style="opacity:.75;font-size:12px;">▾</span>
       </div>
     </div>
@@ -295,11 +279,12 @@
 })();
 
 /* =========================================================
-   ✅ CARTESIA TTS (ADDED)
+   ✅ DEEPGRAM STT & CARTESIA TTS
    - Speaks newest translated segment (each FINAL speech chunk)
    - Queues chunks and plays sequentially
-   - Uses Authorization: Bearer (per docs) + also sends X-API-Key for compatibility
+   - Uses Authorization: Bearer (per docs)
 ========================================================= */
+const DEEPGRAM_KEY = "6c275acd1917225b560d181f411e554f36a39a18";
 const CARTESIA_CFG = {
   endpoint: "https://api.cartesia.ai/tts/bytes",
   version: "2025-04-16",
@@ -330,7 +315,7 @@ function ensureCartesiaKey() {
 }
 
 async function unlockAudioOnce() {
-  // Helps on mobile autoplay restrictions: must occur after a user gesture.
+  // Helps on mobile autoplay restrictions
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (AC) {
@@ -338,14 +323,40 @@ async function unlockAudioOnce() {
       await ctx.resume();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      gain.gain.value = 0.0001;
+      gain.gain.value = 0.0001; // nearly silent
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.02);
-      setTimeout(() => ctx.close().catch(()=>{}), 100);
+      osc.stop(ctx.currentTime + 0.1);
+      
+      // Do NOT close context immediately if we want background persistence.
+      // Instead, we will keep a background interval ensuring context is active.
     }
+    startBackgroundLoop();
   } catch (_) {}
+}
+
+let bgInterval = null;
+function startBackgroundLoop() {
+  if (bgInterval) return;
+  // create a very short silent beep every 20s to keep connection alive on some browsers
+  bgInterval = setInterval(async () => {
+    if (!listening && ttsQueue.length === 0) return; // only needed if active
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        const ctx = new AC();
+        await ctx.resume();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0.00001;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.01);
+      }
+    } catch(e) {}
+  }, 15000);
 }
 
 function splitSpeakSegments(text) {
@@ -496,11 +507,11 @@ async function setAndPlayBlob(blob) {
   }
 
 /* =========================================================
-   WebSpeech STT (SpeechRecognition)
+   Deepgram STT (WebSocket)
 ========================================================= */
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognizer = null;
-let listening = false;
+let dgSocket = null;
+let mediaRecorder = null;
+let keepAliveInterval = null;
 
 const ui = {
   overlay: document.getElementById("overlay"),
@@ -524,7 +535,8 @@ function setStatus(text, mode="idle") {
   if (mode === "err") ui.dot.classList.add("err");
 }
 
-function mapSpeechLang(code) {
+function mapDeepgramLang(code) {
+  // Deepgram supports BCP-47 tags
   const m = {
     en: "en-US",
     nl: "nl-NL",
@@ -533,50 +545,131 @@ function mapSpeechLang(code) {
     es: "es-ES",
     tr: "tr-TR",
     tl: "fil-PH",
+    it: "it-IT",
+    pt: "pt-BR",
+    ru: "ru-RU",
+    ja: "ja-JP",
+    zh: "zh-CN",
+    "zh-CN": "zh-CN",
+    "zh-TW": "zh-TW"
   };
   return m[code] || code;
 }
 
-function ensureRecognizer() {
-  if (!SpeechRecognition) {
-    setStatus("WebSpeech not supported in this browser.", "err");
-    ui.bigText.textContent = "Your browser does not support WebSpeech STT. Use Chrome on Android/desktop.";
-    return false;
-  }
+async function startDeepgram() {
+  const lang = mapDeepgramLang(ui.srcLang.value);
+  const url = `wss://api.deepgram.com/v1/listen?smart_format=true&interim_results=true&model=nova-2&language=${lang}`;
+  
+  dgSocket = new WebSocket(url, ["token", DEEPGRAM_KEY]);
 
-  if (!recognizer) {
-    recognizer = new SpeechRecognition();
-    recognizer.continuous = true;
-    recognizer.interimResults = true;
+  dgSocket.onopen = () => {
+    setStatus("Connected", "on");
+    startRecorder();
+  };
 
-    recognizer.onstart = () => {
-      setStatus("Listening…", "on");
-      ui.translatingLabel.textContent = "Translating";
-    };
-
-    recognizer.onend = () => {
-      if (listening) {
-        setStatus("Restarting…", "on");
-        try { recognizer.start(); } catch(_) {}
-      } else {
-        setStatus("Idle");
+  dgSocket.onmessage = (msg) => {
+    try {
+      const data = JSON.parse(msg.data);
+      if (data.channel && data.channel.alternatives && data.channel.alternatives[0]) {
+        const alt = data.channel.alternatives[0];
+        const transcript = alt.transcript;
+        
+        if (transcript) {
+          if (data.is_final) {
+             finalText = normalizeSpaces(finalText + " " + transcript);
+             interimText = "";
+             // ✅ Immediate Final Translation
+             translateAndSpeakSegment(transcript).catch(()=>{});
+          } else {
+             interimText = normalizeSpaces(transcript);
+          }
+          
+          const full = currentFullText();
+          ui.debug.textContent = full ? `Heard: ${full.slice(-90)}` : "";
+          // Update UI with interim text quickly
+          scheduleTranslateNow(false);
+          
+          // Keep-Alive for background
+          if (keepAliveInterval === null) {
+              // We could send a keepalive to DG if needed, but sending audio handles that.
+              // This is mainly for the browser process.
+          }
+        }
       }
-    };
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
-    recognizer.onerror = (e) => {
-      setStatus("Mic/STT error: " + (e.error || "unknown"), "err");
-      listening = false;
-      try { recognizer.stop(); } catch(_) {}
-    };
+  dgSocket.onclose = () => {
+    if (listening) {
+      setStatus("Reconnecting...", "err");
+      setTimeout(startDeepgram, 1000);
+    } else {
+      setStatus("Idle");
+    }
+  };
 
-    recognizer.onresult = onSpeechResult;
+  dgSocket.onerror = (e) => {
+    console.error("DG Error", e);
+    setStatus("Connection Error", "err");
+  };
+}
+
+async function startRecorder() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Use smaller timeslice for lower latency
+    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+    
+    mediaRecorder.addEventListener("dataavailable", event => {
+      if (event.data.size > 0 && dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+        dgSocket.send(event.data);
+      }
+    });
+
+    mediaRecorder.start(250); // 250ms chunks
+    setStatus("Listening…", "on");
+    ui.translatingLabel.textContent = "Broadcasting";
+    
+  } catch (e) {
+    setStatus("Mic Access Error", "err");
+    ui.bigText.textContent = "Microphone access denied or not available.";
+    listening = false;
+    dgSocket.close();
   }
+}
 
-  return true;
+async function startListening() {
+  if (listening) return;
+  await unlockAudioOnce(); // Ensure audio context is ready
+  ensureCartesiaKey();
+  
+  finalText = "";
+  interimText = "";
+  lastTranslatedKey = "";
+  ui.bigText.textContent = "Connecting to Deepgram…";
+  setStatus("Connecting…", "on");
+  
+  listening = true;
+  startDeepgram();
+}
+
+function stopListening() {
+  listening = false;
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+  }
+  if (dgSocket) {
+    dgSocket.close();
+    dgSocket = null;
+  }
+  setStatus("Idle");
 }
 
 /* =========================================================
-   Live text buffers
+   Event Listeners & Cleanup matches
 ========================================================= */
 let finalText = "";
 let interimText = "";
@@ -635,7 +728,8 @@ function scheduleTranslateNow(force=false) {
       ui.debug.textContent = String(err?.message || err);
       ui.bigText.textContent = "Translate request blocked (network/CORS).";
     }
-  }, force ? 0 : 450);
+  // Debounce interim updates slightly for UI, but final results are instant.
+  }, force ? 0 : 100);
 }
 
 /* =========================================================
@@ -659,74 +753,9 @@ async function translateAndSpeakSegment(finalSegment) {
 }
 
 /* =========================================================
-   Speech result handler
+   Speech result logic moved to socket.onmessage
 ========================================================= */
-function onSpeechResult(event) {
-  let interim = "";
-
-  for (let i = event.resultIndex; i < event.results.length; i++) {
-    const r = event.results[i];
-    const t = r[0]?.transcript || "";
-
-    if (r.isFinal) {
-      const cleaned = normalizeSpaces(t);
-      if (cleaned) {
-        finalText = normalizeSpaces(finalText + " " + cleaned);
-
-        // ✅ Speak newest translated segment (this final chunk)
-        translateAndSpeakSegment(cleaned).catch(()=>{});
-      }
-    } else {
-      interim += t;
-    }
-  }
-
-  interimText = normalizeSpaces(interim);
-
-  const full = currentFullText();
-  ui.debug.textContent = full ? `Heard: ${full.slice(-90)}` : "";
-  scheduleTranslateNow(false);
-}
-
-/* =========================================================
-   Start/stop listening
-========================================================= */
-async function startListening() {
-  if (!ensureRecognizer()) return;
-  if (listening) return;
-
-  // unlock audio on the same tap that starts listening :contentReference[oaicite:3]{index=3}
-  await unlockAudioOnce();
-  // prompt for key early so it doesn't interrupt later playback
-  ensureCartesiaKey();
-
-  finalText = "";
-  interimText = "";
-  lastTranslatedKey = "";
-  ui.bigText.textContent = "Listening… speak now.";
-  setStatus("Requesting mic…", "on");
-
-  recognizer.lang = mapSpeechLang(ui.srcLang.value);
-
-  listening = true;
-  try {
-    recognizer.start();
-  } catch (e) {
-    try { recognizer.stop(); } catch(_) {}
-    setTimeout(() => {
-      try { recognizer.start(); } catch(err) {
-        setStatus("Unable to start mic.", "err");
-        listening = false;
-      }
-    }, 250);
-  }
-}
-
-function stopListening() {
-  listening = false;
-  try { recognizer && recognizer.stop(); } catch(_) {}
-  setStatus("Idle");
-}
+// function onSpeechResult(event) { ... }  <-- Removed
 
 /* =========================================================
    UI actions
@@ -737,8 +766,12 @@ ui.toggleListenBtn.addEventListener("click", () => {
 });
 
 ui.srcLang.addEventListener("change", () => {
-  if (recognizer) recognizer.lang = mapSpeechLang(ui.srcLang.value);
-  scheduleTranslateNow(true);
+    // If we are listening, we might want to restart deepgram with new lang
+    if (listening) {
+        stopListening();
+        startListening();
+    }
+    scheduleTranslateNow(true);
 });
 
 ui.tgtLang.addEventListener("change", () => {
@@ -764,6 +797,133 @@ ui.fsBtn.addEventListener("click", async () => {
 
 /* Initial state */
 setStatus("Idle");
+
+/* =========================================================
+   Initialize Languages
+========================================================= */
+const ALL_LANGS = {
+  "af": "Afrikaans",
+  "sq": "Albanian",
+  "am": "Amharic",
+  "ar": "Arabic",
+  "hy": "Armenian",
+  "az": "Azerbaijani",
+  "eu": "Basque",
+  "be": "Belarusian",
+  "bn": "Bengali",
+  "bs": "Bosnian",
+  "bg": "Bulgarian",
+  "ca": "Catalan",
+  "ceb": "Cebuano",
+  "ny": "Chichewa",
+  "zh-CN": "Chinese (Simplified)",
+  "zh-TW": "Chinese (Traditional)",
+  "co": "Corsican",
+  "hr": "Croatian",
+  "cs": "Czech",
+  "da": "Danish",
+  "nl": "Dutch",
+  "en": "English",
+  "eo": "Esperanto",
+  "et": "Estonian",
+  "tl": "Filipino (Tagalog)",
+  "fi": "Finnish",
+  "fr": "French",
+  "fy": "Frisian",
+  "gl": "Galician",
+  "ka": "Georgian",
+  "de": "German",
+  "el": "Greek",
+  "gu": "Gujarati",
+  "ht": "Haitian Creole",
+  "ha": "Hausa",
+  "haw": "Hawaiian",
+  "he": "Hebrew",
+  "hi": "Hindi",
+  "hmn": "Hmong",
+  "hu": "Hungarian",
+  "is": "Icelandic",
+  "ig": "Igbo",
+  "id": "Indonesian",
+  "ga": "Irish",
+  "it": "Italian",
+  "ja": "Japanese",
+  "jw": "Javanese",
+  "kn": "Kannada",
+  "kk": "Kazakh",
+  "km": "Khmer",
+  "rw": "Kinyarwanda",
+  "ko": "Korean",
+  "ku": "Kurdish (Kurmanji)",
+  "ky": "Kyrgyz",
+  "lo": "Lao",
+  "la": "Latin",
+  "lv": "Latvian",
+  "lt": "Lithuanian",
+  "lb": "Luxembourgish",
+  "mk": "Macedonian",
+  "mg": "Malagasy",
+  "ms": "Malay",
+  "ml": "Malayalam",
+  "mt": "Maltese",
+  "mi": "Maori",
+  "mr": "Marathi",
+  "mn": "Mongolian",
+  "my": "Myanmar (Burmese)",
+  "ne": "Nepali",
+  "no": "Norwegian",
+  "or": "Odia (Oriya)",
+  "ps": "Pashto",
+  "fa": "Persian",
+  "pl": "Polish",
+  "pt": "Portuguese",
+  "pa": "Punjabi",
+  "ro": "Romanian",
+  "ru": "Russian",
+  "sm": "Samoan",
+  "gd": "Scots Gaelic",
+  "sr": "Serbian",
+  "st": "Sesotho",
+  "sn": "Shona",
+  "sd": "Sindhi",
+  "si": "Sinhala",
+  "sk": "Slovak",
+  "sl": "Slovenian",
+  "so": "Somali",
+  "es": "Spanish",
+  "su": "Sundanese",
+  "sw": "Swahili",
+  "sv": "Swedish",
+  "tg": "Tajik",
+  "ta": "Tamil",
+  "tt": "Tatar",
+  "te": "Telugu",
+  "th": "Thai",
+  "tr": "Turkish",
+  "tk": "Turkmen",
+  "uk": "Ukrainian",
+  "ur": "Urdu",
+  "ug": "Uyghur",
+  "uz": "Uzbek",
+  "vi": "Vietnamese",
+  "cy": "Welsh",
+  "xh": "Xhosa",
+  "yi": "Yiddish",
+  "yo": "Yoruba",
+  "zu": "Zulu"
+};
+
+function populateLangs() {
+  const mkOpt = (k, v) => `<option value="${k}">${v}</option>`;
+  const opts = Object.entries(ALL_LANGS).map(([k,v]) => mkOpt(k,v)).join("");
+  ui.srcLang.innerHTML = opts;
+  ui.tgtLang.innerHTML = opts;
+  
+  // Set defaults
+  ui.srcLang.value = "en";
+  ui.tgtLang.value = "nl";
+}
+populateLangs();
 </script>
 
 </body>

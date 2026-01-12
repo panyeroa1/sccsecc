@@ -214,37 +214,6 @@
     .collapsed .content{ display:none; }
     .collapsed .chevronBtn{ transform: rotate(180deg); }
 
-    .sidebar{
-      position: fixed;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 10000;
-    }
-
-    .sidebarBtn{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:6px;
-      width:56px;
-      padding:10px 8px;
-      border-radius: 12px;
-      border: 1px solid var(--stroke);
-      background: var(--pill);
-      color: var(--txt);
-      cursor:pointer;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-    }
-
-    .sidebarBtn:hover{ background: rgba(50,205,50,.18); }
-
-    .sidebarIcon{
-      width:24px;
-      height:24px;
-    }
 
     .orb{
       position: fixed;
@@ -356,18 +325,6 @@
         font-size: 13px;
       }
 
-      .sidebar{
-        left:8px;
-        top:auto;
-        bottom:96px;
-        transform:none;
-      }
-
-      .sidebarBtn{
-        width:52px;
-        padding:8px 6px;
-      }
-
       .orb{
         right:14px;
         bottom:14px;
@@ -380,17 +337,6 @@
 <body>
 
 <audio id="tts" autoplay></audio>
-
-<div class="sidebar">
-  <button id="orbitSidebarBtn" class="sidebarBtn" type="button" title="Orbit Translator" aria-label="Orbit Translator">
-    <svg class="sidebarIcon" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <circle cx="20" cy="24" r="10" stroke="currentColor" stroke-width="2" />
-      <path d="M6 28c7-6 21-9 36-5" stroke="currentColor" stroke-width="2" opacity="0.7" />
-      <circle cx="36" cy="14" r="3" fill="currentColor" opacity="0.7" />
-    </svg>
-    <span>Orbit</span>
-  </button>
-</div>
 
 <div id="overlay" class="overlay">
   <div class="topbar">
@@ -782,8 +728,7 @@ const ui = {
   fsBtn: document.getElementById("fsBtn"),
   closeBtn: document.getElementById("closeBtn"),
   chevBtn: document.getElementById("chevBtn"),
-  orb: document.getElementById("orb"),
-  orbitSidebarBtn: document.getElementById("orbitSidebarBtn")
+  orb: document.getElementById("orb")
 };
 
 function setStatus(text, mode="idle") {
@@ -1105,12 +1050,6 @@ ui.chevBtn.addEventListener("click", () => ui.overlay.classList.toggle("collapse
 ui.fsBtn.addEventListener("click", async () => {
   try { document.fullscreenElement ? document.exitFullscreen() : ui.overlay.requestFullscreen(); } catch(_){}
 });
-
-if (ui.orbitSidebarBtn) {
-  ui.orbitSidebarBtn.addEventListener("click", () => {
-    toggleOverlayVisible();
-  });
-}
 
 if (ui.orb) {
   let orbDragging = false;

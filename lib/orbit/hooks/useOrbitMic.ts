@@ -4,7 +4,17 @@ import { rtdb } from '@/lib/orbit/services/firebase';
 
 const ORBIT_API_KEY = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY || '';
 
-export function useOrbitMic() {
+export type OrbitAudioSource = 'microphone' | 'screen';
+
+export interface UseOrbitMicOptions {
+  source?: OrbitAudioSource;
+  language?: string;
+  autoStart?: boolean;
+}
+
+export function useOrbitMic(options: UseOrbitMicOptions = {}) {
+  const { source: initialSource = 'microphone', language = 'multi' } = options;
+  const [source, setSource] = useState<OrbitAudioSource>(initialSource);
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isFinal, setIsFinal] = useState(false);
@@ -29,23 +39,63 @@ export function useOrbitMic() {
     }
   };
 
+  const stop = useCallback(() => {
+     // Internal stop logic
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+    }
+    if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+    }
+    if (socketRef.current) {
+        socketRef.current.close();
+    }
+    if (audioContextRef.current) {
+        audioContextRef.current.close();
+    }
+
+    setIsRecording(false);
+    setTranscript('');
+    setIsFinal(false);
+    streamRef.current = null;
+    socketRef.current = null;
+    mediaRecorderRef.current = null;
+    audioContextRef.current = null;
+    analyserRef.current = null;
+  }, []);
+
   const start = useCallback(async () => {
+    // Hard stop before start
+    stop();
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
-      });
+      let stream: MediaStream;
+      
+      if (source === 'screen') {
+        // Request display media with audio
+        stream = await (navigator.mediaDevices as any).getDisplayMedia({
+          video: true,
+          audio: true
+        });
+      } else {
+        // Request microphone
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+        });
+      }
+      
       streamRef.current = stream;
 
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
       
-      const source = audioContext.createMediaStreamSource(stream);
+      const sourceNode = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 128;
-      source.connect(analyser);
+      sourceNode.connect(analyser);
       analyserRef.current = analyser;
 
-      const url = 'wss://api.deepgram.com/v1/listen?model=nova-3&language=multi&smart_format=true&interim_results=true&punctuate=true&utterances=true&endpointing=100';
+      const url = `wss://api.deepgram.com/v1/listen?model=nova-3&language=${language}&smart_format=true&interim_results=true&punctuate=true&utterances=true&endpointing=100`;
       const socket = new WebSocket(url, ['token', ORBIT_API_KEY]);
       socketRef.current = socket;
 
@@ -77,23 +127,16 @@ export function useOrbitMic() {
                 currentBuffer.push(text);
                 (socket as any)._sentenceBuffer = currentBuffer;
 
-                if (currentBuffer.length >= 2) {
-                   const fullText = currentBuffer.join(' ');
+                if (currentBuffer.length >= 1) { // Changed to 1 for more immediate feedback
+                   const fullText = (socket as any)._sentenceBuffer.join(' ');
                    setTranscript(fullText);
                    setIsFinal(true);
                    updateOrbitRTDB(fullText, true);
-                   // Reset buffer
                    (socket as any)._sentenceBuffer = [];
                 }
               } else {
-                // Interim results: optionally show them?
-                // User requirement: "make at least 2 sentence before shipping to save".
-                // If we show interim, it's "shipping" to UI. 
-                // To be safe and compliant, we hide interim or only show it if strictly needed.
-                // Given "shipping to save", I'll suppress interim updates to the main transcript 
-                // to ensure the "batch" effect is clear.
-                // However, seeing *nothing* might be bad UX. 
-                // But the request is specific. I will NOT setTranscript for interim.
+                setTranscript(text);
+                setIsFinal(false);
               }
             }
         } catch (err) {
@@ -104,34 +147,16 @@ export function useOrbitMic() {
       socket.onclose = stop;
       socket.onerror = stop;
 
+      // Handle stream end (e.g. screen share stop)
+      stream.getTracks().forEach(track => {
+        track.onended = stop;
+      });
+
     } catch (e) {
       console.error("Orbit Mic Start Failed", e);
       stop();
     }
-  }, []);
-
-  const stop = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-    }
-    if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-    }
-    if (socketRef.current) {
-        socketRef.current.close();
-    }
-    if (audioContextRef.current) {
-        audioContextRef.current.close();
-    }
-
-    setIsRecording(false);
-    setTranscript('');
-    streamRef.current = null;
-    socketRef.current = null;
-    mediaRecorderRef.current = null;
-    audioContextRef.current = null;
-    analyserRef.current = null;
-  }, []);
+  }, [source, language, stop]);
 
   const toggle = useCallback(() => {
     if (isRecording) {
@@ -144,15 +169,20 @@ export function useOrbitMic() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-        if (isRecording) stop();
+        stop();
     };
-  }, []);
+  }, [stop]);
 
   return {
+    source,
+    setSource,
     isRecording,
     transcript,
     isFinal,
+    start,
+    stop,
     toggle,
     analyser: analyserRef.current
   };
 }
+

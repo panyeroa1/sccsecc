@@ -10,27 +10,24 @@ import { useAuth } from '@/components/AuthProvider';
 import { RecordingIndicator } from '@/lib/RecordingIndicator';
 import { ConnectionDetails } from '@/lib/types';
 import { EburonControlBar } from '@/lib/EburonControlBar';
-import { subscribeToRoom, tryAcquireSpeaker, releaseSpeaker } from '@/lib/orbit/services/roomStateService';
+import { subscribeToRoom, tryAcquireSpeaker, releaseSpeaker, claimHost, toggleFloorLock, setConversationMode } from '@/lib/orbit/services/roomStateService';
 import { RoomState } from '@/lib/orbit/types';
-
+import { OrbitIcon } from '@/lib/orbit/components/OrbitTranslatorVertical';
 
 import { ChatPanel } from '@/lib/ChatPanel';
 import { ParticipantsPanel } from '@/lib/ParticipantsPanel';
-import { OrbitTranslatorVertical } from '@/lib/orbit/components/OrbitTranslatorVertical';
-import { SpeakTranscriptionPanel } from '@/lib/orbit/components/SpeakTranscriptionPanel';
-import { OrbitIntegrations } from '@/lib/orbit/components/OrbitIntegrations';
+import { OrbitTranslatorPanel } from '@/lib/orbit/components/OrbitTranslatorPanel';
 import { LiveCaptions } from '@/lib/LiveCaptions';
 import { CustomPreJoin } from '@/lib/CustomPreJoin';
 import { useDeepgramLive } from '@/lib/orbit/hooks/useDeepgramLive';
 import { ensureRoomState } from '@/lib/orbit/services/orbitService';
-
+import { LANGUAGES } from '@/lib/orbit/types';
+import { useOrbitTranslator } from '@/lib/orbit/hooks/useOrbitTranslator';
 
 import { HostCaptionOverlay } from '@/lib/orbit/components/HostCaptionOverlay';
 import { CinemaCaptionOverlay } from '@/lib/CinemaCaptionOverlay';
 
 import roomStyles from '@/styles/Eburon.module.css';
-
-
 
 import {
   LocalUserChoices,
@@ -50,7 +47,7 @@ import {
   ConnectionStateToast,
 } from '@livekit/components-react';
 import { useMeetingFloor } from '@/lib/useMeetingFloor';
-import { useRoomContext, useLocalParticipant, useRemoteParticipants } from '@livekit/components-react';
+import { useParams } from 'next/navigation';
 import {
   ExternalE2EEKeyProvider,
   RoomOptions,
@@ -66,7 +63,7 @@ import {
   ConnectionState,
   Track,
 } from 'livekit-client';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useSetupE2EE } from '@/lib/useSetupE2EE';
 import { useLowCPUOptimizer } from '@/lib/usePerfomanceOptimiser';
 
@@ -75,12 +72,6 @@ const CONN_DETAILS_ENDPOINT =
 
 // Icons
 import { useOrbitMic } from '@/lib/orbit/hooks/useOrbitMic';
-
-const MicIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-);
 
 const ChevronRightIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
@@ -94,7 +85,7 @@ const ChevronLeftIcon = () => (
   </svg>
 );
 
-type SidebarPanel = 'participants' | 'agent' | 'chat' | 'settings' | 'translator' | 'speak';
+type SidebarPanel = 'participants' | 'chat' | 'settings' | 'orbit';
 
 function VideoGrid({ allowedParticipantIds, isGridView }: { allowedParticipantIds: Set<string>, isGridView: boolean }) {
   const layoutContext = useLayoutContext();
@@ -145,28 +136,12 @@ function VideoGrid({ allowedParticipantIds, isGridView }: { allowedParticipantId
     }
   }, [layoutContext, tracks, focusTrackRef]);
 
-  // Filter to only show local participant camera and any screen shares
-  // Remote participants are shown in the Trainor sidebar only
   const filteredTracks = tracks.filter((track) => {
-    // Always show screen shares
-    if (track.source === Track.Source.ScreenShare) {
-      return true;
-    }
-    // Only show local participant's camera in the grid
-    if (track.participant?.isLocal) {
-      return true;
-    }
-    // If it's a allowed participant
-    if (track.participant && allowedParticipantIds.has(track.participant.identity)) {
-      return true;
-    }
-    // If Grid view is enabled, show all participants
-    if (isGridView && track.participant) {
-      return true;
-    }
-    if (focusTrackSid && isTrackReference(track) && track.publication.trackSid === focusTrackSid) {
-      return true;
-    }
+    if (track.source === Track.Source.ScreenShare) return true;
+    if (track.participant?.isLocal) return true;
+    if (track.participant && allowedParticipantIds.has(track.participant.identity)) return true;
+    if (isGridView && track.participant) return true;
+    if (focusTrackSid && isTrackReference(track) && track.publication.trackSid === focusTrackSid) return true;
     return false;
   });
 
@@ -177,7 +152,6 @@ function VideoGrid({ allowedParticipantIds, isGridView }: { allowedParticipantId
     );
   const activeFocusTrack = focusIsInGrid ? focusTrackRef : undefined;
 
-  // If no tracks to show, display a placeholder
   if (filteredTracks.length === 0) {
     return (
       <div className={roomStyles.videoPlaceholder}>
@@ -379,13 +353,10 @@ export function PageClientImpl(props: {
     console.error('Pre-join error', error);
   }, []);
 
-  // Auto-join persistence
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     const shouldAutoJoin = sessionStorage.getItem(`lk_autojoin_${props.roomName}`);
     if (shouldAutoJoin === 'true' && userChoices.username) {
-       // If we have persistent choices and the flag, skip prejoin
-       // We use the persistent choices loaded from usePersistentUserChoices
        setPreJoinChoices({
          username: userChoices.username,
          videoEnabled: userChoices.videoEnabled ?? true,
@@ -396,11 +367,8 @@ export function PageClientImpl(props: {
     }
   }, [props.roomName, userChoices]);
 
-
   React.useEffect(() => {
-    if (!preJoinChoices) {
-      return;
-    }
+    if (!preJoinChoices) return;
     let isMounted = true;
     const loadConnectionDetails = async () => {
       setIsLoading(true);
@@ -418,29 +386,19 @@ export function PageClientImpl(props: {
           throw new Error(errorText || 'Failed to fetch connection details');
         }
         const data = (await response.json()) as ConnectionDetails;
-        if (isMounted) {
-          setConnectionDetails(data);
-        }
+        if (isMounted) setConnectionDetails(data);
       } catch (error) {
         console.error('Connection details error', error);
-        if (isMounted) {
-          setConnectionDetails(undefined);
-        }
+        if (isMounted) setConnectionDetails(undefined);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
     loadConnectionDetails();
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [preJoinChoices, props.roomName, props.region]);
 
-  if (isLoading) {
-    return <div className={roomStyles.videoPlaceholder}>Loading...</div>;
-  }
+  if (isLoading) return <div className={roomStyles.videoPlaceholder}>Loading...</div>;
 
   return (
     <main data-lk-theme="default" className="lk-room-container">
@@ -454,15 +412,7 @@ export function PageClientImpl(props: {
             videoDeviceId: preJoinDefaults.videoDeviceId,
             audioDeviceId: preJoinDefaults.audioDeviceId,
           }}
-          onSubmit={(choices) => {
-            handlePreJoinSubmit({
-              username: choices.username,
-              videoEnabled: choices.videoEnabled,
-              audioEnabled: choices.audioEnabled,
-              videoDeviceId: choices.videoDeviceId,
-              audioDeviceId: choices.audioDeviceId,
-            });
-          }}
+          onSubmit={handlePreJoinSubmit}
           onError={handlePreJoinError}
         />
       ) : (
@@ -470,17 +420,6 @@ export function PageClientImpl(props: {
           connectionDetails={connectionDetails}
           userChoices={preJoinChoices}
           options={{ codec: props.codec, hq: props.hq }}
-          onDeviceChange={(kind, deviceId) => {
-            const newChoices = { ...preJoinChoices };
-            if (kind === 'audioinput') {
-              newChoices.audioDeviceId = deviceId;
-              saveAudioInputDeviceId(deviceId);
-            } else if (kind === 'videoinput') {
-              newChoices.videoDeviceId = deviceId;
-              saveVideoInputDeviceId(deviceId);
-            }
-            setPreJoinChoices(newChoices);
-          }}
         />
       )}
     </main>
@@ -490,160 +429,45 @@ export function PageClientImpl(props: {
 function VideoConferenceComponent(props: {
   userChoices: LocalUserChoices;
   connectionDetails: ConnectionDetails;
-  options: {
-    hq: boolean;
-    codec: VideoCodec;
-  };
-  onDeviceChange?: (kind: MediaDeviceKind, deviceId: string) => void;
+  options: { hq: boolean; codec: VideoCodec };
 }) {
   const keyProvider = React.useMemo(() => new ExternalE2EEKeyProvider(), []);
   const { worker, e2eePassphrase } = useSetupE2EE();
   const e2eeEnabled = !!(e2eePassphrase && worker);
-
   const { roomName } = useParams<{ roomName: string }>();
-  const [e2eeSetupComplete, setE2eeSetupComplete] = React.useState(false);
-  // Default to 'translator' (Listen tab) for joining participants, 'participants' for hosts
-  const [activeSidebarPanel, setActiveSidebarPanel] = React.useState<SidebarPanel>('translator');
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
-  const [voiceFocusEnabled, setVoiceFocusEnabled] = React.useState(true);
-  const [isGridView, setIsGridView] = React.useState(false);
-  const [vadEnabled, setVadEnabled] = React.useState(true);
-  const [noiseSuppressionEnabled, setNoiseSuppressionEnabled] = React.useState(true);
-  const [echoCancellationEnabled, setEchoCancellationEnabled] = React.useState(true);
-  const [autoGainEnabled, setAutoGainEnabled] = React.useState(true);
-  const [waitingRoomEnabled, setWaitingRoomEnabled] = React.useState(false);
-  const [waitingList, setWaitingList] = React.useState<{ identity: string; name: string }[]>([]);
-  const [admittedIds, setAdmittedIds] = React.useState<Set<string>>(new Set());
   const { user } = useAuth();
-  const [isAppMuted, setIsAppMuted] = React.useState(false);
 
-  const { activeSpeakerId: floorSpeakerId, isFloorHolder, claimFloor, grantFloor } = useMeetingFloor(roomName, user?.id || '');
-
-  const [isTranscriptionEnabled, setIsTranscriptionEnabled] = React.useState(true);
-  const [targetLanguage, setTargetLanguage] = React.useState('West Flemish (Belgium)'); // New State
-  const [roomState, setRoomState] = React.useState<RoomState>({ activeSpeaker: null, raiseHandQueue: [], lockVersion: 0 });
+  const [roomState, setRoomState] = React.useState<RoomState>({ 
+    hostId: null, 
+    activeSpeaker: null, 
+    isFloorLocked: false, 
+    conversationMode: 'manual',
+    raiseHandQueue: [], 
+    lockVersion: 0 
+  });
+  const [sourceLanguage, setSourceLanguage] = React.useState('multi');
+  const [targetLanguage, setTargetLanguage] = React.useState('West Flemish (Belgium)');
   const [roomId, setRoomId] = React.useState<string | null>(null);
-  const [audioDevices, setAudioDevices] = React.useState<MediaDeviceInfo[]>([]);
-  const speakEmbedUrl = React.useMemo(() => {
-    const fallback = process.env.NEXT_PUBLIC_SPEAK_EMBED_URL || 'https://major-orbit.vercel.app/';
-    try {
-      const url = new URL(fallback, typeof window !== 'undefined' ? window.location.href : undefined);
-      if (typeof window !== 'undefined') {
-        url.searchParams.set('origin', window.location.origin);
-      }
-      return url.toString();
-    } catch {
-      return fallback;
-    }
-  }, []);
-
-  // Elevated Deepgram STT State
-  const deepgram = useDeepgramLive({ model: 'nova-2', language: 'multi' });
-
-  // Transcription State (Client-Side)
-  // This lives alongside the "LiveCaptions" component which handles room-wide broadcasted captions.
-  // This specific sidebar is for the "Streaming/Local" transcription (Deepgram/Gemini) requested by user.
-
-
-
-
-
-
-  React.useEffect(() => {
-    const updateDevices = async () => {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const mics = devices.filter((d) => d.kind === 'audioinput');
-        setAudioDevices(mics);
-      } catch (err) {
-        console.error('Failed to enumerate devices', err);
-      }
-    };
-
-    updateDevices();
-    navigator.mediaDevices.addEventListener('devicechange', updateDevices);
-    return () => navigator.mediaDevices.removeEventListener('devicechange', updateDevices);
-  }, []);
-
-  React.useEffect(() => {
-    if (!roomName) return;
-    const unsub = subscribeToRoom(roomName, (state) => {
-      setRoomState(state);
-    });
-    
-    // Resolve Room UUID for DB binding
-    ensureRoomState(roomName).then(id => {
-      if (id) setRoomId(id);
-    });
-
-    return unsub;
-  }, [roomName]);
-
-  // Auto-release speaker lock on unmount or page leave
-  React.useEffect(() => {
-    const handleUnload = () => {
-      if (isTranscriptionEnabled && roomName && user?.id) {
-        // Use a synchronous-like fetch if possible, or just rely on the fact that 
-        // releaseSpeaker is called. Note: cleanup is async but browser might kill it.
-        releaseSpeaker(roomName, user.id);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-      handleUnload();
-    };
-  }, [isTranscriptionEnabled, roomName, user?.id]);
-
-  const layoutContext = useCreateLayoutContext();
-
-  // Sync roomName to session storage for OrbitApp integration
-  React.useEffect(() => {
-    if (roomName) {
-      sessionStorage.setItem('eburon_meeting_id', roomName);
-    }
-  }, [roomName]);
-
-  const playJoinSound = React.useCallback(() => {
-    try {
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.32);
-      setTimeout(() => ctx.close(), 500);
-    } catch (error) {
-      console.warn('Join sound failed', error);
-    }
-  }, []);
+  const [hostId, setHostId] = React.useState<string | null>(null);
 
   const roomOptions = React.useMemo((): RoomOptions => {
     let videoCodec: VideoCodec | undefined = props.options.codec ? props.options.codec : 'vp9';
     if (e2eeEnabled && (videoCodec === 'av1' || videoCodec === 'vp9')) {
       videoCodec = undefined;
     }
-    const videoCaptureDefaults: VideoCaptureOptions = {
-      deviceId: props.userChoices.videoDeviceId ?? undefined,
-      resolution: props.options.hq ? VideoPresets.h2160 : VideoPresets.h720,
-    };
-    const publishDefaults: TrackPublishDefaults = {
-      dtx: false,
-      videoSimulcastLayers: props.options.hq
-        ? [VideoPresets.h1080, VideoPresets.h720]
-        : [VideoPresets.h540, VideoPresets.h216],
-      red: !e2eeEnabled,
-      videoCodec,
-    };
     return {
-      videoCaptureDefaults: videoCaptureDefaults,
-      publishDefaults: publishDefaults,
+      videoCaptureDefaults: {
+        deviceId: props.userChoices.videoDeviceId ?? undefined,
+        resolution: props.options.hq ? VideoPresets.h2160 : VideoPresets.h720,
+      },
+      publishDefaults: {
+        dtx: false,
+        videoSimulcastLayers: props.options.hq
+          ? [VideoPresets.h1080, VideoPresets.h720]
+          : [VideoPresets.h540, VideoPresets.h216],
+        red: !e2eeEnabled,
+        videoCodec,
+      },
       audioCaptureDefaults: {
         deviceId: props.userChoices.audioDeviceId ?? undefined,
       },
@@ -654,9 +478,108 @@ function VideoConferenceComponent(props: {
     };
   }, [e2eeEnabled, keyProvider, worker, props.userChoices, props.options.hq, props.options.codec]);
 
-  const room = React.useMemo(() => new Room(roomOptions), [roomOptions]);
+  const lkRoom = React.useMemo(() => new Room(roomOptions), [roomOptions]);
+
+  return (
+    <RoomContext.Provider value={lkRoom}>
+      <RoomInner 
+        {...props} 
+        lkRoom={lkRoom} 
+        roomState={roomState}
+        setRoomState={setRoomState}
+        roomName={roomName}
+        user={user}
+        roomId={roomId}
+        setRoomId={setRoomId}
+        hostId={hostId}
+        setHostId={setHostId}
+        sourceLanguage={sourceLanguage}
+        setSourceLanguage={setSourceLanguage}
+        targetLanguage={targetLanguage}
+        setTargetLanguage={setTargetLanguage}
+        e2eeEnabled={e2eeEnabled}
+        e2eePassphrase={e2eePassphrase}
+        keyProvider={keyProvider}
+      />
+    </RoomContext.Provider>
+  );
+}
+
+function RoomInner(props: {
+  userChoices: LocalUserChoices;
+  connectionDetails: ConnectionDetails;
+  options: { hq: boolean; codec: VideoCodec };
+  lkRoom: Room;
+  roomName: string | undefined;
+  user: any;
+  roomState: RoomState;
+  setRoomState: React.Dispatch<React.SetStateAction<RoomState>>;
+  roomId: string | null;
+  setRoomId: React.Dispatch<React.SetStateAction<string | null>>;
+  hostId: string | null;
+  setHostId: React.Dispatch<React.SetStateAction<string | null>>;
+  sourceLanguage: string;
+  setSourceLanguage: React.Dispatch<React.SetStateAction<string>>;
+  targetLanguage: string;
+  setTargetLanguage: React.Dispatch<React.SetStateAction<string>>;
+  e2eeEnabled: boolean;
+  e2eePassphrase?: string;
+  keyProvider: ExternalE2EEKeyProvider;
+}) {
+  const { 
+    lkRoom, roomName, user, roomState, setRoomState, 
+    roomId, setRoomId, hostId, setHostId,
+    sourceLanguage, setSourceLanguage, targetLanguage, setTargetLanguage,
+    e2eeEnabled, e2eePassphrase, keyProvider
+  } = props;
+  
+  const [activeSidebarPanel, setActiveSidebarPanel] = React.useState<SidebarPanel>('participants');
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  const [voiceFocusEnabled, setVoiceFocusEnabled] = React.useState(true);
+  const [isGridView, setIsGridView] = React.useState(false);
+  const [vadEnabled, setVadEnabled] = React.useState(true);
+  const [noiseSuppressionEnabled, setNoiseSuppressionEnabled] = React.useState(true);
+  const [echoCancellationEnabled, setEchoCancellationEnabled] = React.useState(true);
+  const [autoGainEnabled, setAutoGainEnabled] = React.useState(true);
+  const [waitingRoomEnabled, setWaitingRoomEnabled] = React.useState(false);
+  const [waitingList, setWaitingList] = React.useState<{ identity: string; name: string }[]>([]);
+  const [admittedIds, setAdmittedIds] = React.useState<Set<string>>(new Set());
+  const [isAppMuted, setIsAppMuted] = React.useState(false);
+  const [isOrbSettingsOpen, setIsOrbSettingsOpen] = React.useState(false);
+  const [orbPosition, setOrbPosition] = React.useState<{ x: number; y: number } | null>({ x: 20, y: 20 });
+  const [isOrbDragging, setIsOrbDragging] = React.useState(false);
+  const [e2eeSetupComplete, setE2eeSetupComplete] = React.useState(false);
+  const orbRef = React.useRef<HTMLDivElement | null>(null);
+  const orbBarIndices = React.useMemo(() => Array.from({ length: 6 }, (_, i) => i), []);
+  const orbStyle: React.CSSProperties | undefined = orbPosition
+    ? { left: orbPosition.x, top: orbPosition.y, right: 'auto', bottom: 'auto' }
+    : undefined;
+
+  const [orbModalPage, setOrbModalPage] = React.useState<1 | 2>(1);
+  const [isListening, setIsListening] = React.useState(false);
+  const [hearRawAudio, setHearRawAudio] = React.useState(false);
+
+  const { activeSpeakerId: floorSpeakerId, isFloorHolder, claimFloor, grantFloor } = useMeetingFloor(roomName || '', user?.id || '');
+  const [isTranscriptionEnabled, setIsTranscriptionEnabled] = React.useState(true);
+
+  // Context-dependent hooks
+  const deepgram = useDeepgramLive({ model: 'nova-2', language: 'multi' });
+  const orbitMicState = useOrbitMic({ language: sourceLanguage });
+  const translator = useOrbitTranslator({
+    targetLanguage,
+    enabled: isListening,
+    hearRawAudio,
+    isSourceSpeaker: roomState?.activeSpeaker?.userId === user?.id
+  });
+
+  React.useEffect(() => {
+    if (isListening && roomState?.activeSpeaker?.userId === user?.id && orbitMicState.isFinal && orbitMicState.transcript?.trim()) {
+      translator.sendTranslation(orbitMicState.transcript);
+    }
+  }, [isListening, roomState?.activeSpeaker?.userId, user?.id, orbitMicState.isFinal, orbitMicState.transcript, translator]);
+
   const audioCaptureOptions = React.useMemo<AudioCaptureOptions>(() => {
-    const activeDeviceId = room.getActiveDevice('audioinput') ?? props.userChoices.audioDeviceId ?? undefined;
+    const activeDeviceId = lkRoom.getActiveDevice('audioinput') ?? props.userChoices.audioDeviceId ?? undefined;
     return {
       deviceId: activeDeviceId,
       channelCount: 1,
@@ -666,492 +589,349 @@ function VideoConferenceComponent(props: {
       noiseSuppression: noiseSuppressionEnabled,
       voiceIsolation: voiceFocusEnabled ? true : undefined,
     };
-  }, [
-    room,
-    props.userChoices.audioDeviceId,
-    autoGainEnabled,
-    echoCancellationEnabled,
-    noiseSuppressionEnabled,
-    voiceFocusEnabled,
-  ]);
+  }, [lkRoom, props.userChoices.audioDeviceId, autoGainEnabled, echoCancellationEnabled, noiseSuppressionEnabled, voiceFocusEnabled]);
+
+  const layoutContext = useCreateLayoutContext();
+
+  // Room State Services Subscription
+  React.useEffect(() => {
+    if (!roomName) return;
+    ensureRoomState(roomName);
+    const unsubscribe = subscribeToRoom(roomName, (state: RoomState) => {
+      setRoomState(state);
+      if (state.hostId) setHostId(state.hostId);
+    });
+    return () => unsubscribe();
+  }, [roomName, setRoomState, setHostId]);
 
   React.useEffect(() => {
-    if (e2eeEnabled) {
-      keyProvider
-        .setKey(decodePassphrase(e2eePassphrase))
-        .then(() => {
-          room.setE2EEEnabled(true).catch((e) => {
-            if (e instanceof DeviceUnsupportedError) {
-              alert(
-                `You're trying to join an encrypted meeting, but your browser does not support it. Please update it to the latest version and try again.`,
-              );
-              console.error(e);
-            } else {
-              throw e;
-            }
-          });
-        })
-        .then(() => setE2eeSetupComplete(true));
+    if (!isOrbSettingsOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOrbSettingsOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOrbSettingsOpen]);
+
+  // Orb Audio Visualizer Loop
+  React.useEffect(() => {
+    if (!roomName) return;
+    let animationId: number;
+    const updateViz = () => {
+      if (!orbRef.current) return;
+      
+      // Outgoing (Blue) - Local Mic
+      let outLevel = 0;
+      if (orbitMicState.isRecording && orbitMicState.analyser) {
+        const data = new Uint8Array(orbitMicState.analyser.frequencyBinCount);
+        orbitMicState.analyser.getByteFrequencyData(data);
+        const sum = data.reduce((acc, val) => acc + val, 0);
+        outLevel = sum / data.length / 255;
+      }
+      const outBars = orbRef.current.querySelectorAll(`.${roomStyles.orbBarOut}`);
+      outBars.forEach((bar: any, idx: number) => {
+        const h = 5 + outLevel * (30 + idx * 5);
+        bar.style.height = `${h}px`;
+        bar.style.opacity = 0.4 + outLevel * 0.6;
+      });
+
+      // Incoming (Green) - From Active Speaker
+      let inLevel = 0;
+      const speakerId = roomState.activeSpeaker?.userId;
+      if (speakerId && speakerId !== lkRoom.localParticipant.identity) {
+        const p = lkRoom.remoteParticipants.get(speakerId);
+        if (p) {
+          inLevel = p.audioLevel > 0 ? p.audioLevel : (p.isSpeaking ? 0.3 + Math.random() * 0.2 : 0);
+        }
+      }
+      const inBars = orbRef.current.querySelectorAll(`.${roomStyles.orbBarIn}`);
+      inBars.forEach((bar: any, idx: number) => {
+        const h = 5 + inLevel * (30 + idx * 5);
+        bar.style.height = `${h}px`;
+        bar.style.opacity = 0.4 + inLevel * 0.6;
+      });
+
+      animationId = requestAnimationFrame(updateViz);
+    };
+    animationId = requestAnimationFrame(updateViz);
+    return () => cancelAnimationFrame(animationId);
+  }, [roomName, roomState, orbitMicState.isRecording, orbitMicState.analyser, lkRoom]);
+
+  // Orb Dragging Logic
+  React.useEffect(() => {
+    const orb = orbRef.current;
+    if (!orb) return;
+    let dragging = false;
+    let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+    const margin = 12;
+
+    const clampPosition = (x: number, y: number) => {
+      const rect = orb.getBoundingClientRect();
+      const size = rect.width || 86;
+      const maxX = Math.max(margin, window.innerWidth - size - margin);
+      const maxY = Math.max(margin, window.innerHeight - size - margin);
+      return { x: Math.min(Math.max(margin, x), maxX), y: Math.min(Math.max(margin, y), maxY) };
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || (event.target as HTMLElement)?.closest('[data-orb-settings="true"]')) return;
+      const rect = orb.getBoundingClientRect();
+      startLeft = rect.left; startTop = rect.top; startX = event.clientX; startY = event.clientY;
+      dragging = true; setIsOrbDragging(true);
+      orb.setPointerCapture(event.pointerId);
+      setOrbPosition(clampPosition(rect.left, rect.top));
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!dragging) return;
+      const next = clampPosition(startLeft + (event.clientX - startX), startTop + (event.clientY - startY));
+      setOrbPosition(next);
+    };
+
+    const endDrag = (event: PointerEvent) => {
+      if (!dragging) return;
+      dragging = false; setIsOrbDragging(false);
+      try { orb.releasePointerCapture(event.pointerId); } catch (_) {}
+    };
+
+    const onResize = () => {
+      setOrbPosition(prev => {
+        if (!prev) return prev;
+        const rect = orb.getBoundingClientRect();
+        const size = rect.width || 86;
+        const maxX = Math.max(margin, window.innerWidth - size - margin);
+        const maxY = Math.max(margin, window.innerHeight - size - margin);
+        return { x: Math.min(Math.max(margin, prev.x), maxX), y: Math.min(Math.max(margin, prev.y), maxY) };
+      });
+    };
+
+    orb.addEventListener('pointerdown', onPointerDown);
+    orb.addEventListener('pointermove', onPointerMove);
+    orb.addEventListener('pointerup', endDrag);
+    orb.addEventListener('pointercancel', endDrag);
+    window.addEventListener('resize', onResize);
+    return () => {
+      orb.removeEventListener('pointerdown', onPointerDown);
+      orb.removeEventListener('pointermove', onPointerMove);
+      orb.removeEventListener('pointerup', endDrag);
+      orb.removeEventListener('pointercancel', endDrag);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
+
+  // E2EE Setup
+  React.useEffect(() => {
+    if (e2eeEnabled && e2eePassphrase) {
+      keyProvider.setKey(decodePassphrase(e2eePassphrase))
+        .then(() => lkRoom.setE2EEEnabled(true))
+        .then(() => setE2eeSetupComplete(true))
+        .catch(console.error);
     } else {
       setE2eeSetupComplete(true);
     }
-  }, [e2eeEnabled, room, e2eePassphrase, keyProvider]);
+  }, [e2eeEnabled, lkRoom, e2eePassphrase, keyProvider]);
 
-  const connectOptions = React.useMemo((): RoomConnectOptions => {
-    return {
-      autoSubscribe: true,
-    };
-  }, []);
-
+  // Room Connection & Events
   const router = useRouter();
-  const handleOnLeave = React.useCallback(() => {
-    sessionStorage.removeItem('lk_session_storage');
-    router.push('/');
-  }, [router]);
-  const handleError = React.useCallback((error: Error) => {
-    console.error(error);
-    alert(`Encountered an unexpected error, check the console logs for details: ${error.message}`);
-  }, []);
-  const handleEncryptionError = React.useCallback((error: Error) => {
-    console.error(error);
-    alert(
-      `Encountered an unexpected encryption error, check the console logs for details: ${error.message}`,
-    );
-  }, []);
-
   React.useEffect(() => {
-    room.on(RoomEvent.Disconnected, handleOnLeave);
-    room.on(RoomEvent.EncryptionError, handleEncryptionError);
-    room.on(RoomEvent.MediaDevicesError, handleError);
-    room.on(RoomEvent.ParticipantConnected, (participant) => {
-      playJoinSound();
-      if (waitingRoomEnabled && !participant.isLocal) {
-        setWaitingList((prev) => [
-          ...prev,
-          { identity: participant.identity, name: participant.name || participant.identity },
-        ]);
-        setAdmittedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(participant.identity);
-          return next;
-        });
+    const handleOnLeave = () => { sessionStorage.removeItem('lk_session_storage'); router.push('/'); };
+    lkRoom.on(RoomEvent.Disconnected, handleOnLeave);
+    lkRoom.on(RoomEvent.ParticipantConnected, (p) => {
+      if (waitingRoomEnabled && !p.isLocal) {
+        setWaitingList(prev => [...prev, { identity: p.identity, name: p.name || p.identity }]);
       } else {
-        setAdmittedIds((prev) => {
-          const next = new Set(prev);
-          next.add(participant.identity);
-          return next;
-        });
+        setAdmittedIds(prev => new Set(prev).add(p.identity));
       }
     });
-    room.on(RoomEvent.ParticipantDisconnected, (participant) => {
-      setWaitingList((prev) => prev.filter((p) => p.identity !== participant.identity));
-      setAdmittedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(participant.identity);
-        return next;
-      });
+    lkRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+      setWaitingList(prev => prev.filter(w => w.identity !== p.identity));
+      setAdmittedIds(prev => { const next = new Set(prev); next.delete(p.identity); return next; });
     });
 
     if (e2eeSetupComplete) {
-      room
-        .connect(
-          props.connectionDetails.serverUrl,
-          props.connectionDetails.participantToken,
-          connectOptions,
-        )
-        .catch((error) => {
-          handleError(error);
-        });
-      if (props.userChoices.videoEnabled) {
-        room.localParticipant.setCameraEnabled(true).catch((error) => {
-          handleError(error);
-        });
-      }
-      if (props.userChoices.audioEnabled) {
-        room.localParticipant.setMicrophoneEnabled(true, audioCaptureOptions).catch((error) => {
-          handleError(error);
-        });
-      }
+      lkRoom.connect(props.connectionDetails.serverUrl, props.connectionDetails.participantToken, { autoSubscribe: true })
+        .then(() => {
+          if (props.userChoices.videoEnabled) lkRoom.localParticipant.setCameraEnabled(true);
+          if (props.userChoices.audioEnabled) lkRoom.localParticipant.setMicrophoneEnabled(true, audioCaptureOptions);
+        })
+        .catch(console.error);
     }
     return () => {
-      room.off(RoomEvent.Disconnected, handleOnLeave);
-      room.off(RoomEvent.EncryptionError, handleEncryptionError);
-      room.off(RoomEvent.MediaDevicesError, handleError);
-      room.removeAllListeners(RoomEvent.ParticipantConnected);
-      room.removeAllListeners(RoomEvent.ParticipantDisconnected);
+      lkRoom.off(RoomEvent.Disconnected, handleOnLeave);
+      lkRoom.removeAllListeners(RoomEvent.ParticipantConnected);
+      lkRoom.removeAllListeners(RoomEvent.ParticipantDisconnected);
     };
-  }, [
-    e2eeSetupComplete,
-    room,
-    props.connectionDetails,
-    props.userChoices,
-    connectOptions,
-    handleOnLeave,
-    handleEncryptionError,
-    handleError,
-    audioCaptureOptions,
-    playJoinSound,
-    waitingRoomEnabled,
-  ]);
+  }, [e2eeSetupComplete, lkRoom, props.connectionDetails, props.userChoices, props.options, audioCaptureOptions, waitingRoomEnabled, router]);
 
-  const lowPowerMode = useLowCPUOptimizer(room);
+  const lowPowerMode = useLowCPUOptimizer(lkRoom);
 
-  React.useEffect(() => {
-    if (room.state !== ConnectionState.Connected) {
-      return;
-    }
-    if (!room.localParticipant.isMicrophoneEnabled) {
-      return;
-    }
-    setAdmittedIds((prev) => {
-      const next = new Set(prev);
-      next.add(room.localParticipant.identity);
-      return next;
-    });
-    room.localParticipant.setMicrophoneEnabled(true, audioCaptureOptions).catch((error) => {
-      console.warn('Failed to apply audio processing settings', error);
-    });
-  }, [room, audioCaptureOptions]);
-
-  React.useEffect(() => {
-    if (lowPowerMode) {
-      console.warn('Low power mode enabled');
-    }
-  }, [lowPowerMode]);
-
-  const admitParticipant = React.useCallback((identity: string) => {
-    setWaitingList((prev) => prev.filter((p) => p.identity !== identity));
-    setAdmittedIds((prev) => {
-      const next = new Set(prev);
-      next.add(identity);
-      return next;
-    });
+  const admitParticipant = React.useCallback(async (identity: string) => {
+    setWaitingList(prev => prev.filter(p => p.identity !== identity));
+    setAdmittedIds(prev => new Set(prev).add(identity));
   }, []);
 
-  const isAgentSpeakingRef = React.useRef(false);
-
-  const updateVolumes = React.useCallback(() => {
-     const vol = isAgentSpeakingRef.current ? 0.15 : 1.0;
-     Array.from(room.remoteParticipants.values()).forEach(p => {
-        Array.from(p.trackPublications.values()).forEach(pub => {
-           if (pub.kind === Track.Kind.Audio && pub.track) {
-              pub.track.attachedElements.forEach(el => {
-                 el.volume = vol;
-              });
-           }
-        });
-     });
-  }, [room]);
-
-  const handleAgentSpeakingChange = React.useCallback((speaking: boolean) => {
-     isAgentSpeakingRef.current = speaking;
-     updateVolumes();
-  }, [updateVolumes]);
+  const rejectParticipant = React.useCallback(async (identity: string) => {
+    setWaitingList(prev => prev.filter(p => p.identity !== identity));
+    if (!roomName) return;
+    try {
+      await fetch('/api/room/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomName, participantIdentity: identity }),
+      });
+    } catch (e) { console.error(e); }
+  }, [roomName]);
 
   const handleSidebarPanelToggle = (panel: SidebarPanel) => {
-    setSidebarCollapsed((prevCollapsed) => {
-      const isSamePanel = activeSidebarPanel === panel;
-      
-      // Auto-start transcription when 'speak' is opened
-      if (panel === 'speak') {
-        if (prevCollapsed || !isSamePanel) {
-          // If we were in translator, stop it first (though they share the hook, 
-          // we want to ensure Speak starts fresh with its own intent)
-          if (activeSidebarPanel === 'translator') {
-             deepgram.stop();
-          }
-          deepgram.start(audioCaptureOptions?.deviceId as string);
-        }
-        return false; // Always expand
-      }
-
-      // Handle mutual exclusion: if switching away from 'speak', stop transcription
-      if (activeSidebarPanel === 'speak') {
-        deepgram.stop();
-      }
-
-      // If switching to 'translator', also ensure we start fresh if it was listening
-      if (panel === 'translator' && activeSidebarPanel === 'speak') {
-         // deepgram.stop() was called above, so we're good.
-      }
-
-      if (!prevCollapsed && isSamePanel) {
-        return true;
-      }
-      return false;
-    });
+    setSidebarCollapsed(prev => !prev && activeSidebarPanel === panel);
     setActiveSidebarPanel(panel);
   };
 
-  // Orbit Mic Hook (Lifted)
-  const orbitMicState = useOrbitMic();
-  
-  const handleTranslatorListeningChange = React.useCallback((isListening: boolean) => {
-      // Auto-Mute Logic
-      if (isListening && orbitMicState.isRecording) {
-          // If we start listening (Play Audio), turn off the mic
-          orbitMicState.toggle();
-      }
-  }, [orbitMicState]);
-
   const renderSidebarPanel = () => {
-    if (sidebarCollapsed) {
-      return null;
-    }
+    if (sidebarCollapsed) return null;
     switch (activeSidebarPanel) {
-      case 'participants':
-        return (
-          <ParticipantsPanel
-            alias="Participants"
-            waitingRoomEnabled={waitingRoomEnabled}
-            onWaitingRoomToggle={(enabled) => {
-              setWaitingRoomEnabled(enabled);
-              if (!enabled) {
-                // Admit everyone waiting
-                setAdmittedIds((prev) => {
-                  const next = new Set(prev);
-                  waitingList.forEach((p) => next.add(p.identity));
-                  return next;
-                });
-                setWaitingList([]);
-              }
-            }}
-            waitingList={waitingList}
-            onAdmitParticipant={admitParticipant}
-            admittedIds={admittedIds}
-          />
-        );
-// Add import at the top (assumed to be done or will be done by TS, but I need to do it here manually if I can't ask it. Wait I can just edit the import section too).
-// Actually, I can use multi_replace for this.
-
-      case 'agent':
-        return (
-          <OrbitTranslatorVertical 
-            roomCode={roomName}
-            userId={user?.id || 'guest'}
-            audioDevices={audioDevices}
-            onListeningChange={handleTranslatorListeningChange}
-            deepgram={deepgram}
-          />
-        );
-      case 'chat':
-        return <ChatPanel />;
-      case 'settings':
-        return (
-          <SettingsPanel
-            voiceFocusEnabled={voiceFocusEnabled}
-            onVoiceFocusChange={setVoiceFocusEnabled}
-            vadEnabled={vadEnabled}
-            onVadChange={setVadEnabled}
-            noiseSuppressionEnabled={noiseSuppressionEnabled}
-            onNoiseSuppressionChange={setNoiseSuppressionEnabled}
-            echoCancellationEnabled={echoCancellationEnabled}
-            onEchoCancellationChange={setEchoCancellationEnabled}
-            autoGainEnabled={autoGainEnabled}
-            onAutoGainChange={setAutoGainEnabled}
-          />
-        );
-      case 'translator':
-        return (
-          <OrbitTranslatorVertical 
-            roomCode={roomName}
-            userId={user?.id || 'guest'}
-            audioDevices={audioDevices}
-            onListeningChange={handleTranslatorListeningChange}
-            deepgram={deepgram}
-          />
-        );
-      case 'speak':
-        return                <SpeakTranscriptionPanel 
-                  deviceId={audioCaptureOptions?.deviceId as string} 
-                  orbit={deepgram} 
-                  meetingId={roomName}
-                  userId={user?.id}
-                />;
-      default:
-        return null;
+      case 'participants': return <ParticipantsPanel alias="Participants" waitingRoomEnabled={waitingRoomEnabled} onWaitingRoomToggle={setWaitingRoomEnabled} waitingList={waitingList} onAdmitParticipant={admitParticipant} onRejectParticipant={rejectParticipant} admittedIds={admittedIds} hostIdentity={hostId || undefined} />;
+      case 'chat': return <ChatPanel />;
+      case 'settings': return <SettingsPanel voiceFocusEnabled={voiceFocusEnabled} onVoiceFocusChange={setVoiceFocusEnabled} vadEnabled={vadEnabled} onVadChange={setVadEnabled} noiseSuppressionEnabled={noiseSuppressionEnabled} onNoiseSuppressionChange={setNoiseSuppressionEnabled} echoCancellationEnabled={echoCancellationEnabled} onEchoCancellationChange={setEchoCancellationEnabled} autoGainEnabled={autoGainEnabled} onAutoGainChange={setAutoGainEnabled} />;
+      case 'orbit': return (
+        <OrbitTranslatorPanel 
+          roomCode={roomName} userId={user?.id} isSourceSpeaker={roomState?.activeSpeaker?.userId === user?.id} currentSpeakerId={roomState?.activeSpeaker?.userId} currentSpeakerName={roomState?.activeSpeaker?.userId?.split('__')[0]} 
+          onRequestFloor={async () => roomName && user?.id ? await tryAcquireSpeaker(roomName, user.id, false) : false}
+          onReleaseFloor={async () => roomName && user?.id && await releaseSpeaker(roomName, user.id)}
+          isListening={isListening} setIsListening={setIsListening}
+          targetLanguage={targetLanguage} setTargetLanguage={setTargetLanguage}
+          incomingTranslations={translator.incomingTranslations}
+          isProcessing={translator.isProcessing}
+          error={translator.error}
+          transcript={orbitMicState.transcript} isFinal={orbitMicState.isFinal}
+        />
+      );
+      default: return null;
     }
   };
 
-  const handleTranscriptSegment = React.useCallback(async (segment: any) => {
-    console.log('🎤 handleTranscriptSegment called with:', segment);
-    
-    if (!roomName) {
-      console.log('❌ No roomName, exiting');
-      return;
-    }
-    
-    console.log('✅ roomName:', roomName);
-    console.log('👤 user:', user);
-    
-    try {
-        const speakerId = user?.id || crypto.randomUUID();
-        const insertData = {
-            meeting_id: roomName,
-            speaker_id: speakerId,
-            user_id: user?.id || null,
-            transcribe_text_segment: segment.text,
-            full_transcription: segment.text,
-        };
-        
-        console.log('📝 Attempting insert with data:', JSON.stringify(insertData, null, 2));
-        console.log('🔌 Supabase client exists:', !!supabase);
-        
-        const result = await supabase.from('transcriptions').insert({
-            meeting_id: roomName,
-            speaker_id: speakerId,
-            user_id: null, // Set to null to avoid FK constraint - user may not exist in users table
-            transcribe_text_segment: segment.text,
-            full_transcription: segment.text,
-        });
-        console.log('📊 Supabase result:', JSON.stringify(result, null, 2));
-        
-        const { data, error } = result;
-        
-        if (error) {
-            console.error('❌ Supabase returned error');
-            console.error('Error type:', typeof error);
-            console.error('Error constructor:', error?.constructor?.name);
-            console.error('Error keys:', Object.keys(error));
-            console.error('Error message:', error?.message);
-            console.error('Error details:', error?.details);
-            console.error('Error hint:', error?.hint);
-            console.error('Error code:', error?.code);
-            console.error('Full error:', error);
-            throw error;
-        }
-        console.log('✅ Transcription saved successfully!', data);
-    } catch (err: any) {
-        console.error('🔥 Caught error in try/catch');
-        console.error('Error type:', typeof err);
-        console.error('Error constructor:', err?.constructor?.name);
-        console.error('Error keys:', err ? Object.keys(err) : 'null');
-        console.error('Error string:', String(err));
-        console.error('Failed to save transcript:', err);
-    }
-  }, [roomName, user?.id]);
-
   const handleTranscriptionToggle = React.useCallback(async () => {
     if (!roomName || !user?.id) return;
-
     if (!isTranscriptionEnabled) {
-      // Check if current speaker is still in the room
-      const currentSpeakerId = roomState?.activeSpeaker?.userId;
-      const isSpeakerInRoom = currentSpeakerId ? 
-        (Array.from(room.remoteParticipants.values()).some(p => p.identity === currentSpeakerId) || 
-         room.localParticipant.identity === currentSpeakerId) : false;
-
-      // Attempt to acquire lock
-      // If there is a speaker but they aren't in the room, force takeover
-      const shouldForce = !!(currentSpeakerId && !isSpeakerInRoom);
-      const success = await tryAcquireSpeaker(roomName, user.id, shouldForce);
-      
-      if (success) {
-        setIsTranscriptionEnabled(true);
-      } else {
-        toast.error('Someone else is currently speaking' as any);
-      }
+      const speakerId = roomState?.activeSpeaker?.userId;
+      const isSpeakerInRoom = speakerId ? (Array.from(lkRoom.remoteParticipants.values()).some(p => p.identity === speakerId) || lkRoom.localParticipant.identity === speakerId) : false;
+      const success = await tryAcquireSpeaker(roomName, user.id, !!(speakerId && !isSpeakerInRoom));
+      if (success) setIsTranscriptionEnabled(true);
+      else toast.error('Someone else is currently speaking' as any);
     } else {
-      // Release lock
       await releaseSpeaker(roomName, user.id);
       setIsTranscriptionEnabled(false);
     }
-  }, [isTranscriptionEnabled, roomName, user?.id, roomState, room]);
+  }, [isTranscriptionEnabled, roomName, user?.id, roomState, lkRoom]);
 
   return (
-    <div
-      className={`lk-room-container ${roomStyles.roomLayout} ${sidebarCollapsed ? roomStyles.roomLayoutCollapsed : ''}`}
-    >
-      <RoomContext.Provider value={room}>
-        <LayoutContextProvider value={layoutContext}>
-          <KeyboardShortcuts />
-          <RoomAudioRenderer volume={activeSidebarPanel === 'translator' ? 0 : 1} />
-          <ConnectionStateToast />
-          
-          {/* Main video grid */}
-          <div className={roomStyles.videoGridContainer}>
-            <VideoGrid allowedParticipantIds={admittedIds} isGridView={isGridView} />
-          </div>
-          
-          {/* Right Sidebar */}
-          <div className={`${roomStyles.chatPanel} ${sidebarCollapsed ? roomStyles.chatPanelCollapsed : ''}`}>
-            <button 
-              className={roomStyles.sidebarToggle}
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            >
-              {sidebarCollapsed ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-            </button>
-            <div className={roomStyles.sidebarContent}>
-              {renderSidebarPanel()}
+    <div className={`lk-room-container ${roomStyles.roomLayout} ${sidebarCollapsed ? roomStyles.roomLayoutCollapsed : ''}`}>
+      <LayoutContextProvider value={layoutContext}>
+        <KeyboardShortcuts />
+        <RoomAudioRenderer volume={1} />
+        <ConnectionStateToast />
+
+        <div ref={orbRef} className={`${roomStyles.orbDock} ${isOrbDragging ? roomStyles.orbDockDragging : ''}`} style={orbStyle} aria-label="Orbit audio orb">
+          <div className={roomStyles.orbCore} />
+          <div className={roomStyles.orbVisualizer} aria-hidden="true">
+            <div className={roomStyles.orbVizRow}>
+              {orbBarIndices.map(i => <span key={`orb-in-${i}`} className={`${roomStyles.orbBar} ${roomStyles.orbBarIn}`} style={{ animationDelay: `${i * 0.12}s` }} />)}
+            </div>
+            <div className={roomStyles.orbVizRow}>
+              {orbBarIndices.map(i => <span key={`orb-out-${i}`} className={`${roomStyles.orbBar} ${roomStyles.orbBarOut}`} style={{ animationDelay: `${i * 0.1}s` }} />)}
             </div>
           </div>
-          
+          <button type="button" className={roomStyles.orbSettingsBtn} data-orb-settings="true" onClick={() => setIsOrbSettingsOpen(true)} aria-label="Open Orbit settings" title="Open Orbit settings">
+            <OrbitIcon size={12} />
+          </button>
+        </div>
 
+        {isOrbSettingsOpen && (
+          <div className={roomStyles.orbModalOverlay} role="dialog" aria-modal="true" aria-labelledby="orbSettingsTitle" onClick={(e) => e.target === e.currentTarget && setIsOrbSettingsOpen(false)}>
+            <div className={roomStyles.orbModalCard}>
+              <div className={roomStyles.orbModalHeader}>
+                <div id="orbSettingsTitle" className={roomStyles.orbModalTitle}>Success Class</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" className={roomStyles.orbModalClose} onClick={() => { setIsOrbSettingsOpen(false); handleSidebarPanelToggle('orbit'); }} title="Open Orbit Sidebar"><OrbitIcon size={18} /></button>
+                  <button type="button" className={roomStyles.orbModalClose} onClick={() => setIsOrbSettingsOpen(false)} title="Close">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Pagination Tabs */}
+              <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: '16px' }}>
+                <button onClick={() => setOrbModalPage(1)} style={{ paddingBottom: '8px', borderBottom: orbModalPage === 1 ? '2px solid #fbbf24' : 'none', background: 'none', color: orbModalPage === 1 ? '#fbbf24' : 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }} title="Source Settings" aria-label="Source Settings">SOURCE</button>
+                <button onClick={() => setOrbModalPage(2)} style={{ paddingBottom: '8px', borderBottom: orbModalPage === 2 ? '2px solid #fbbf24' : 'none', background: 'none', color: orbModalPage === 2 ? '#fbbf24' : 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }} title="Receiving Settings" aria-label="Receiving Settings">RECEIVING</button>
+              </div>
 
-          {/* Modern Host-Only Per-Character Subtitles */}
-          <HostCaptionOverlay 
-            words={deepgram.words} 
-            isFinal={deepgram.isFinal} 
-            isListening={deepgram.isListening}
-            analyser={deepgram.analyser}
-          />
+              {orbModalPage === 1 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', opacity: 0.6, display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Source Language</label>
+                    <select value={sourceLanguage} title="Source Language" onChange={(e) => setSourceLanguage(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px' }}>
+                      <option value="multi">Auto-detect</option>
+                      {LANGUAGES.slice(0, 20).map(lang => <option key={lang.code} value={lang.code}>{lang.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', opacity: 0.6, display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Audio Source</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => orbitMicState.setSource('microphone')} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: orbitMicState.source === 'microphone' ? 'rgba(50, 205, 50, 0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${orbitMicState.source === 'microphone' ? 'rgba(50, 205, 50, 0.3)' : 'rgba(255,255,255,0.1)'}`, color: orbitMicState.source === 'microphone' ? '#32cd32' : 'inherit', fontSize: '12px', cursor: 'pointer' }} title="Use Microphone" aria-label="Use Microphone">Microphone</button>
+                      <button onClick={() => orbitMicState.setSource('screen')} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: orbitMicState.source === 'screen' ? 'rgba(50, 205, 50, 0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${orbitMicState.source === 'screen' ? 'rgba(50, 205, 50, 0.3)' : 'rgba(255,255,255,0.1)'}`, color: orbitMicState.source === 'screen' ? '#32cd32' : 'inherit', fontSize: '12px', cursor: 'pointer' }} title="Use Screen Audio" aria-label="Use Screen Audio">Screen</button>
+                    </div>
+                  </div>
+                  <button onClick={orbitMicState.toggle} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: orbitMicState.isRecording ? 'rgba(255, 100, 100, 0.1)' : 'rgba(50, 205, 50, 0.1)', border: `1px solid ${orbitMicState.isRecording ? 'rgba(255, 100, 100, 0.3)' : 'rgba(50, 205, 50, 0.3)'}`, color: orbitMicState.isRecording ? '#ff6b6b' : '#32cd32', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }} title={orbitMicState.isRecording ? 'Stop Orbit' : 'Start Orbit'} aria-label={orbitMicState.isRecording ? 'Stop Orbit' : 'Start Orbit'}>{orbitMicState.isRecording ? 'Stop Orbit' : 'Start Orbit'}</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', opacity: 0.6, display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>My Language (Translate To)</label>
+                    <select value={targetLanguage} title="Receiving Language" onChange={(e) => setTargetLanguage(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px' }}>
+                      {LANGUAGES.map(lang => <option key={lang.code} value={lang.code}>{lang.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 500 }}>Global Translation</span>
+                        <span style={{ fontSize: '10px', opacity: 0.5 }}>Listen to translated audio from others</span>
+                    </div>
+                    <button title={isListening ? "Disable Global Translation" : "Enable Global Translation"} aria-label={isListening ? "Disable Global Translation" : "Enable Global Translation"}
+                        onClick={() => setIsListening(!isListening)} 
+                        style={{ width: '40px', height: '20px', borderRadius: '10px', background: isListening ? '#32cd32' : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', border: 'none' }}
+                    >
+                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: isListening ? '22px' : '2px', transition: 'left 0.2s' }} />
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 500 }}>Hear Raw Audio</span>
+                        <span style={{ fontSize: '10px', opacity: 0.5 }}>Keep original voice active during translation</span>
+                    </div>
+                    <button 
+                        onClick={() => setHearRawAudio(!hearRawAudio)} 
+                        style={{ width: '40px', height: '20px', borderRadius: '10px', background: hearRawAudio ? '#32cd32' : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', border: 'none' }}
+                        title={hearRawAudio ? "Mute Raw Audio" : "Unmute Raw Audio"}
+                        aria-label={hearRawAudio ? "Mute Raw Audio" : "Unmute Raw Audio"}
+                    >
+                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: hearRawAudio ? '22px' : '2px', transition: 'left 0.2s' }} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-          {/* Legacy Overlay - disabled for now to favor Karaoke style */}
-          {/*
-          {isTranscriptionEnabled && (
-            <CinemaCaptionOverlay 
-                onTranscriptSegment={handleTranscriptSegment}
-                defaultDeviceId={audioCaptureOptions?.deviceId as string}
-                targetLanguage={targetLanguage}
-                isFloorHolder={isFloorHolder}
-                onClaimFloor={claimFloor}
-            />
-          )}
-          */}
-
-          {/* Custom control bar */}
-          <EburonControlBar 
-            onParticipantsToggle={() => handleSidebarPanelToggle('participants')}
-            onAgentToggle={() => handleSidebarPanelToggle('agent')}
-            onChatToggle={() => handleSidebarPanelToggle('chat')}
-            onSettingsToggle={() => handleSidebarPanelToggle('settings')}
-            onTranslatorToggle={() => handleSidebarPanelToggle('translator')}
-            onSpeakToggle={() => handleSidebarPanelToggle('speak')}
-
-            onGridToggle={() => setIsGridView(!isGridView)}
-            isGridView={isGridView}
-
-            onTranscriptionToggle={handleTranscriptionToggle}
-            isParticipantsOpen={!sidebarCollapsed && activeSidebarPanel === 'participants'}
-            isAgentOpen={!sidebarCollapsed && activeSidebarPanel === 'agent'}
-            isChatOpen={!sidebarCollapsed && activeSidebarPanel === 'chat'}
-            isSettingsOpen={!sidebarCollapsed && activeSidebarPanel === 'settings'}
-            isSpeakOpen={!sidebarCollapsed && activeSidebarPanel === 'speak'}
-
-
-            isTranscriptionOpen={isTranscriptionEnabled}
-            isAppMuted={isAppMuted}
-            onAppMuteToggle={setIsAppMuted}
-            roomState={roomState}
-            userId={user?.id}
-            audioCaptureOptions={audioCaptureOptions}
-            onCaptionToggle={() => setIsTranscriptionEnabled(!isTranscriptionEnabled)}
-            isCaptionOpen={isTranscriptionEnabled}
-
-            onLanguageChange={setTargetLanguage}
-            orbitMicState={orbitMicState}
-          />
-          
-          <DebugMode />
-          <RecordingIndicator />
-
-
-
-          {/* Floating Caption Button */}
-
-        </LayoutContextProvider>
-      </RoomContext.Provider>
+        <div className={roomStyles.videoGridContainer}><VideoGrid allowedParticipantIds={admittedIds} isGridView={isGridView} /></div>
+        <div className={`${roomStyles.chatPanel} ${sidebarCollapsed ? roomStyles.chatPanelCollapsed : ''}`}>
+          <button className={roomStyles.sidebarToggle} onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}>{sidebarCollapsed ? <ChevronLeftIcon /> : <ChevronRightIcon />}</button>
+          <div className={roomStyles.sidebarContent} style={{ overflowY: 'auto', overflowX: 'hidden' }}>{renderSidebarPanel()}</div>
+        </div>
+        <HostCaptionOverlay words={deepgram.words} isFinal={deepgram.isFinal} isListening={deepgram.isListening} analyser={deepgram.analyser} />
+        <EburonControlBar onParticipantsToggle={() => handleSidebarPanelToggle('participants')} onChatToggle={() => handleSidebarPanelToggle('chat')} onSettingsToggle={() => handleSidebarPanelToggle('settings')} onOrbitToggle={() => handleSidebarPanelToggle('orbit')} onGridToggle={() => setIsGridView(!isGridView)} isGridView={isGridView} onTranscriptionToggle={handleTranscriptionToggle} isParticipantsOpen={!sidebarCollapsed && activeSidebarPanel === 'participants'} isChatOpen={!sidebarCollapsed && activeSidebarPanel === 'chat'} isSettingsOpen={!sidebarCollapsed && activeSidebarPanel === 'settings'} isOrbitOpen={!sidebarCollapsed && activeSidebarPanel === 'orbit'} isTranscriptionOpen={isTranscriptionEnabled} isAppMuted={isAppMuted} onAppMuteToggle={setIsAppMuted} roomState={roomState} userId={user?.id} audioCaptureOptions={audioCaptureOptions} onCaptionToggle={() => setIsTranscriptionEnabled(!isTranscriptionEnabled)} isCaptionOpen={isTranscriptionEnabled} onLanguageChange={setTargetLanguage} orbitMicState={orbitMicState} />
+        <DebugMode /><RecordingIndicator />
+      </LayoutContextProvider>
     </div>
   );
 }

@@ -13,11 +13,11 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Success Class | Portal',
+    default: 'Success Class | powered by Orbit SI',
     template: '%s',
   },
   description:
-    'Success Class is a video conferencing platform designed for high-performance teams, powered by Eburon AI.',
+    'Success Class is a video conferencing platform designed for high-performance teams, powered by Orbit SI.',
   twitter: {
     creator: '@eburon_ai',
     site: '@eburon_ai',

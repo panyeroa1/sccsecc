@@ -81,7 +81,14 @@ export function OrbitApp() {
     initSession();
   }, [reportError]);
 
-  const [roomState, setRoomState] = useState<RoomState>({ activeSpeaker: null, raiseHandQueue: [], lockVersion: 0 });
+  const [roomState, setRoomState] = useState<RoomState>({ 
+    hostId: null,
+    activeSpeaker: null, 
+    isFloorLocked: false,
+    conversationMode: 'manual',
+    raiseHandQueue: [], 
+    lockVersion: 0 
+  });
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(LANGUAGES[0]);
   
   const [lastFinalText, setLastFinalText] = useState<string>('');

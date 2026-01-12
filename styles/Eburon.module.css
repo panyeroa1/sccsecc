@@ -2258,3 +2258,168 @@
   width: 20px;
   height: 20px;
 }
+
+/* Floating Orbit Orb */
+.orbDock {
+  position: fixed;
+  left: 20px;
+  top: 20px;
+  width: 86px;
+  height: 86px;
+  z-index: 9999;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.orbDockDragging {
+  cursor: grabbing;
+}
+
+.orbCore {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.22), rgba(0, 0, 0, 0) 45%),
+    radial-gradient(circle at 70% 70%, rgba(50, 205, 50, 0.18), rgba(0, 0, 0, 0) 50%),
+    linear-gradient(135deg, rgba(20, 30, 22, 0.85), rgba(6, 10, 8, 0.95));
+  border: 1px solid rgba(50, 205, 50, 0.35);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.55),
+    0 0 22px rgba(50, 205, 50, 0.25) inset,
+    0 0 18px rgba(50, 205, 50, 0.2);
+  animation: orbFloat 3.2s ease-in-out infinite;
+}
+
+.orbVisualizer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.orbVizRow {
+  display: flex;
+  gap: 4px;
+  height: 18px;
+  align-items: flex-end;
+}
+
+.orbBar {
+  width: 4px;
+  height: 8px;
+  border-radius: 4px;
+  transform-origin: bottom;
+  animation: orbBars 1.2s ease-in-out infinite;
+  box-shadow: 0 0 10px rgba(50, 205, 50, 0.25);
+}
+
+.orbBarIn {
+  background: rgba(50, 205, 50, 0.9);
+}
+
+.orbBarOut {
+  background: rgba(255, 255, 255, 0.8);
+  animation-duration: 1.6s;
+}
+
+.orbSettingsBtn {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(50, 205, 50, 0.35);
+  background: rgba(0, 0, 0, 0.7);
+  color: rgba(240, 255, 240, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.orbSettingsBtn:hover {
+  background: rgba(50, 205, 50, 0.22);
+}
+
+.orbModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orbModalCard {
+  width: min(420px, 92vw);
+  background: rgba(6, 10, 8, 0.95);
+  border: 1px solid rgba(50, 205, 50, 0.25);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+  color: #e6ffe6;
+}
+
+.orbModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.orbModalTitle {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(214, 255, 214, 0.9);
+}
+
+.orbModalClose {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(50, 205, 50, 0.3);
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(240, 255, 240, 0.85);
+  cursor: pointer;
+}
+
+.orbModalText {
+  font-size: 13px;
+  color: rgba(214, 255, 214, 0.7);
+  line-height: 1.4;
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+@keyframes orbBars {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+@media (max-width: 720px) {
+  .orbDock {
+    right: 16px;
+    bottom: 96px;
+    width: 74px;
+    height: 74px;
+  }
+
+  .orbBar {
+    width: 3px;
+  }
+}

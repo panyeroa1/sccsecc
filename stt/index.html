@@ -306,7 +306,7 @@
                     const div = document.createElement('div');
                     div.className = 'dropdown-item';
                     div.innerHTML = `<i class="fa-solid fa-microphone"></i> ${d.label || 'Mic ' + d.deviceId.slice(0,5)}`;
-                    div.onclick = () => startDeepgram(d.deviceId);
+                    div.onclick = () => startOrbit(d.deviceId);
                     deviceList.appendChild(div);
                 });
             } catch (err) {
@@ -330,7 +330,7 @@
                     audio: { deviceId: { exact: deviceId } } 
                 });
 
-                const client = createOrbitClient(ORBIT_API_KEY);
+                const client = createDeepgramClient(ORBIT_API_KEY);
                 currentConnection = client.listen.live({
                     model: 'nova-2',
                     language: 'en',

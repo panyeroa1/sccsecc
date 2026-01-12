@@ -121,7 +121,9 @@ export function ParticipantsPanel({
   onWaitingRoomToggle,
   waitingList,
   onAdmitParticipant,
+  onRejectParticipant,
   admittedIds,
+  hostIdentity,
 }: {
   alias?: string;
   onDirectMessage?: (participantIdentity: string, participantName: string) => void;
@@ -129,7 +131,9 @@ export function ParticipantsPanel({
   onWaitingRoomToggle: (enabled: boolean) => void;
   waitingList: { identity: string; name: string }[];
   onAdmitParticipant: (identity: string) => void;
+  onRejectParticipant: (identity: string) => void;
   admittedIds: Set<string>;
+  hostIdentity?: string;
 }) {
   const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
@@ -297,13 +301,23 @@ export function ParticipantsPanel({
                 {waitingList.map((w) => (
                   <div key={w.identity} className={styles.waitingItem}>
                     <span className={styles.waitingName}>{w.name}</span>
-                    <button
-                      className={styles.sidebarCardButton}
-                      type="button"
-                      onClick={() => onAdmitParticipant(w.identity)}
-                    >
-                      Admit
-                    </button>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        className={styles.sidebarCardButton}
+                        type="button"
+                        onClick={() => onAdmitParticipant(w.identity)}
+                      >
+                        Admit
+                      </button>
+                      <button
+                        className={styles.sidebarCardButton}
+                        style={{ background: 'rgba(255, 100, 100, 0.1)', color: '#ff6b6b', border: '1px solid rgba(255, 100, 100, 0.2)' }}
+                        type="button"
+                        onClick={() => onRejectParticipant(w.identity)}
+                      >
+                        Decline
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -311,6 +325,8 @@ export function ParticipantsPanel({
           )}
           {participants.map((participant) => {
             const isLocal = participant.identity === localParticipant?.identity;
+            const isHost = participant.identity === hostIdentity;
+            const isLocalHost = localParticipant?.identity === hostIdentity;
             const isAdmitted = participant.isLocal || admittedIds.has(participant.identity);
             const isMicEnabled = participant.isMicrophoneEnabled;
             const isCameraEnabled = participant.isCameraEnabled;
@@ -370,6 +386,11 @@ export function ParticipantsPanel({
                       {shortName}
                       {isLocal && <span className={styles.youBadge}> (You)</span>}
                     </span>
+                    {isHost && (
+                      <span style={{ fontSize: '10px', background: '#fbbf24', color: 'black', padding: '2px 4px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
+                        HOST
+                      </span>
+                    )}
                     {participantHoldsFloor && (
                         <span style={{ fontSize: '10px', background: '#66ff00', color: 'black', padding: '2px 4px', borderRadius: '4px', marginLeft: '6px', fontWeight: 'bold' }}>
                            ON AIR
@@ -423,18 +444,24 @@ export function ParticipantsPanel({
                     </button>
                   )}
                   
-                  {/* Grant Floor Button (Only visible if YOU hold the floor, and target is NOT you) */}
-                  {isFloorHolder && !isLocal && (
+                  {/* Grant Floor Button / Make Speaker (Only visible for the HOST, and target is NOT you) */}
+                  {localParticipant?.identity === hostIdentity && !isLocal && (
                       <button
                         className={styles.participantControl}
                         onClick={() => grantFloor(participant.identity)}
-                        title="Grant Microphone Floor"
-                        style={{ color: '#66ff00' }}
+                        title={participantHoldsFloor ? "Remove from Floor" : "Make Speaker (Grant Floor)"}
+                        style={{ color: participantHoldsFloor ? '#ff6b6b' : '#66ff00' }}
                       >
                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                            <circle cx="12" cy="12" r="9" strokeWidth="1" opacity="0.2" /> 
                             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                            <path d="M12 19a7 7 0 0 1-7-7" />
-                            <path d="M19 12a7 7 0 0 1-7 7" />
+                            {/* Orbit arc */}
+                            <path d="M4 14c4-3 12-4 16-2" opacity="0.6" />
+                            {/* Small moon/dot */}
+                            <circle cx="18" cy="8" r="1.5" fill="currentColor" opacity="0.6" />
+                            {participantHoldsFloor && (
+                              <line x1="3" y1="3" x2="21" y2="21" stroke="#ff6b6b" strokeWidth="2.5" />
+                            )}
                          </svg>
                       </button>
                   )}

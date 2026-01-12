@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     }
 
     // Use reported working model
-    const model = 'gemini-3-flash-preview';
+    const model = 'gemini-1.5-flash';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
 
     const geminiResponse = await fetch(url, {

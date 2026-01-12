@@ -4,9 +4,12 @@ import { RoomState } from '../types';
 export async function getRoomState(meetingId: string): Promise<RoomState> {
   const { data } = await supabase.from('meetings').select('*').eq('meeting_id', meetingId).single();
   
-  if (!data) return { activeSpeaker: null, raiseHandQueue: [], lockVersion: 0 };
+  if (!data) return { hostId: null, activeSpeaker: null, isFloorLocked: false, conversationMode: 'manual', raiseHandQueue: [], lockVersion: 0 };
 
   return {
+    hostId: data.host_id || null,
+    isFloorLocked: data.is_floor_locked || false,
+    conversationMode: data.conversation_mode || 'manual',
     activeSpeaker: data.active_speaker_id ? {
       userId: data.active_speaker_id,
       userName: 'Speaker', // TODO: fetch name or store it
@@ -29,6 +32,9 @@ export function subscribeToRoom(meetingId: string, callback: (state: RoomState) 
         if (newRow) {
            // If we have a speaker ID, we ideally want their name. for now callback with generic
            callback({
+             hostId: newRow.host_id || null,
+             isFloorLocked: newRow.is_floor_locked || false,
+             conversationMode: newRow.conversation_mode || 'manual',
              activeSpeaker: newRow.active_speaker_id ? {
                userId: newRow.active_speaker_id,
                userName: 'Speaker', 
@@ -89,7 +95,30 @@ export async function releaseSpeaker(meetingId: string, userId: string) {
   } catch (e) {}
 }
 
-export function raiseHand(userId: string, userName: string) {
+export async function claimHost(meetingId: string, userId: string) {
+  await ensureMeetingRow(meetingId);
+  await supabase
+    .from('meetings')
+    .update({ host_id: userId })
+    .eq('meeting_id', meetingId)
+    .is('host_id', null);
+}
+
+export async function toggleFloorLock(meetingId: string, locked: boolean) {
+  await supabase
+    .from('meetings')
+    .update({ is_floor_locked: locked })
+    .eq('meeting_id', meetingId);
+}
+
+export async function setConversationMode(meetingId: string, mode: 'manual' | 'round-robin') {
+  await supabase
+    .from('meetings')
+    .update({ conversation_mode: mode })
+    .eq('meeting_id', meetingId);
+}
+
+export async function raiseHand(userId: string, userName: string) {
   // Not implemented in DB yet
 }
 

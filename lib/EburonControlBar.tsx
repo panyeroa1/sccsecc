@@ -6,7 +6,6 @@ import { Track, type ScreenShareCaptureOptions, type AudioCaptureOptions } from 
 import toast from 'react-hot-toast';
 import styles from '../styles/Eburon.module.css';
 import { OrbitIcon } from '@/lib/orbit/components/OrbitTranslatorVertical';
-
 // Jitsi-style SVG Icons (simple, line-based)
 const MicIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -179,19 +178,15 @@ import { RoomState, LANGUAGES, Language } from '@/lib/orbit/types';
 interface EburonControlBarProps {
   onChatToggle?: () => void;
   onParticipantsToggle?: () => void;
-  onAgentToggle?: () => void;
+  onOrbitToggle?: () => void;
   onSettingsToggle?: () => void;
-  onSpeakToggle?: () => void;
-
 
   onTranscriptionToggle?: () => void;
   audioCaptureOptions?: AudioCaptureOptions;
   isChatOpen?: boolean;
   isParticipantsOpen?: boolean;
-  isAgentOpen?: boolean;
+  isOrbitOpen?: boolean;
   isSettingsOpen?: boolean;
-  isSpeakOpen?: boolean;
-
 
   isTranscriptionOpen?: boolean;
   isGridView?: boolean;
@@ -203,27 +198,21 @@ interface EburonControlBarProps {
   onCaptionToggle?: () => void;
   isCaptionOpen?: boolean;
   onLanguageChange?: (language: string) => void;
-  onTranslatorToggle?: () => void;
-  isTranslatorOpen?: boolean;
   orbitMicState?: any; // Accepting the lifted state
 }
 
 export function EburonControlBar({
   onChatToggle,
   onParticipantsToggle,
-  onAgentToggle,
+  onOrbitToggle,
   onSettingsToggle,
-  onSpeakToggle,
-
 
   onTranscriptionToggle,
   audioCaptureOptions,
   isChatOpen,
   isParticipantsOpen,
-  isAgentOpen,
+  isOrbitOpen,
   isSettingsOpen,
-  isSpeakOpen,
-
 
   isTranscriptionOpen,
   isGridView,
@@ -235,8 +224,6 @@ export function EburonControlBar({
   onCaptionToggle,
   isCaptionOpen,
   onLanguageChange,
-  onTranslatorToggle,
-  isTranslatorOpen,
   orbitMicState,
 }: EburonControlBarProps) {
   const room = useRoomContext();
@@ -256,7 +243,7 @@ export function EburonControlBar({
   const screenShareMenuRef = React.useRef<HTMLDivElement | null>(null);
 
   // Orbit Mic State (Passed down or fallback)
-  const { isRecording: isOrbitMicRecording, transcript: orbitTranscript, isFinal: isOrbitFinal, toggle: toggleOrbitMic, analyser: orbitAnalyser } = orbitMicState || { 
+  const { isRecording: isOrbitMicRecording, transcript: orbitTranscript, isFinal: isOrbitFinal, analyser: orbitAnalyser } = orbitMicState || { 
      isRecording: false, transcript: '', isFinal: false, toggle: () => {}, analyser: null 
   };
 
@@ -602,7 +589,7 @@ export function EburonControlBar({
   const isSidebarOpen = Boolean(
     isChatOpen || 
     isParticipantsOpen || 
-    isAgentOpen || 
+    isOrbitOpen ||
     isSettingsOpen
   );
 
@@ -623,16 +610,14 @@ export function EburonControlBar({
             {/* Speak (Mic) Section */}
             <div className={`${styles.audioSplitSection} ${styles.audioSplitLeft}`} ref={micMenuRef}>
               <div 
-                className={`${styles.audioSplitMain} ${isSpeakOpen ? styles.iconActive : ''}`} 
+                className={`${styles.audioSplitMain} ${isMicEnabled ? styles.iconActive : ''}`} 
                 onClick={() => {
                    toggleMicrophone();
-                   toggleOrbitMic();
-                   onSpeakToggle?.();
                 }}
                 title={isMicEnabled ? 'Mute microphone' : 'Unmute microphone'}
                 style={{ position: 'relative' }} // ensure relative for visualizer
               >
-                <span className={styles.audioSplitLabel}>Speak</span>
+                <span className={styles.audioSplitLabel}>Success Speak</span>
                 <div className={`${styles.audioSplitIcon} ${isMicEnabled ? styles.iconActive : styles.iconMuted}`}>
                   {isMicEnabled ? <MicIcon /> : <MicOffIcon />}
                 </div>
@@ -693,15 +678,15 @@ export function EburonControlBar({
               )}
             </div>
 
-            {/* Listen Button (Translator) */}
+            {/* Listen Button (Speaker Output) */}
             <div className={styles.audioSplitSection} style={{ marginLeft: '8px' }}>
               <div 
-                className={`${styles.audioSplitMain} ${isTranslatorOpen ? styles.iconActive : ''}`} 
-                onClick={onTranslatorToggle}
-                title="Open Translator"
+                className={`${styles.audioSplitMain} ${isAppMuted ? '' : styles.iconActive}`} 
+                onClick={() => onAppMuteToggle?.((prev) => !prev)}
+                title={isAppMuted ? 'Unmute speaker' : 'Mute speaker'}
               >
-                  <span className={styles.audioSplitLabel}>Listen</span>
-                  <div className={styles.audioSplitIcon}>
+                  <span className={styles.audioSplitLabel}>Success Listen</span>
+                  <div className={`${styles.audioSplitIcon} ${isAppMuted ? styles.iconMuted : styles.iconActive}`}>
                     {/* Headphone icon */}
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
@@ -828,16 +813,16 @@ export function EburonControlBar({
             </button>
           )}
 
-
-          {onAgentToggle && (
+          {onOrbitToggle && (
             <button
-              className={`${styles.controlButton} ${isAgentOpen ? styles.controlButtonActive : ''}`}
-              onClick={onAgentToggle}
-              title="Translator"
+              className={`${styles.controlButton} ${isOrbitOpen ? styles.controlButtonActive : ''}`}
+              onClick={onOrbitToggle}
+              title="Orbit Translator"
             >
               <OrbitIcon size={20} />
             </button>
           )}
+
 
           {onSettingsToggle && (
             <button
@@ -941,19 +926,6 @@ export function EburonControlBar({
               <span className={styles.mobileGridLabel}>{isScreenSharing ? 'Stop Share' : 'Share'}</span>
             </button>
 
-            {onAgentToggle && (
-              <button 
-                className={`${styles.mobileGridItem} ${isAgentOpen ? styles.mobileGridItemActive : ''}`}
-                onClick={() => {
-                  onAgentToggle();
-                  setIsMobileMenuOpen(false);
-                }}
-              >
-                <div className={styles.mobileGridIcon}><OrbitIcon size={24} /></div>
-                <span className={styles.mobileGridLabel}>Translator</span>
-              </button>
-            )}
-
             <button 
               className={`${styles.mobileGridItem} ${isHandRaised ? styles.mobileGridItemActive : ''}`}
               onClick={() => {
@@ -977,6 +949,19 @@ export function EburonControlBar({
               >
                 <div className={styles.mobileGridIcon}><SettingsIcon /></div>
                 <span className={styles.mobileGridLabel}>Settings</span>
+              </button>
+            )}
+
+            {onOrbitToggle && (
+              <button
+                className={`${styles.mobileGridItem} ${isOrbitOpen ? styles.mobileGridItemActive : ''}`}
+                onClick={() => {
+                  onOrbitToggle();
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                <div className={styles.mobileGridIcon}><OrbitIcon size={22} /></div>
+                <span className={styles.mobileGridLabel}>Orbit</span>
               </button>
             )}
 

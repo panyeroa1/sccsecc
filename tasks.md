@@ -1487,7 +1487,7 @@ Timestamp: 2026-01-04 14:52
 
 Current behavior:
 
-- Codebase needs to be synced to a new remote: https://github.com/panyeroa1/mysuccess.git
+- Codebase needs to be synced to a new remote: <https://github.com/panyeroa1/mysuccess.git>
 
 Plan and scope:
 
@@ -1500,7 +1500,7 @@ Timestamp: 2026-01-04 14:55
 
 Summary of what actually changed:
 
-- Updated remote origin to https://github.com/panyeroa1/mysuccess.git.
+- Updated remote origin to <https://github.com/panyeroa1/mysuccess.git>.
 - Force pushed main branch to synchronize history.
 
 How it was tested:
@@ -1522,7 +1522,7 @@ Timestamp: 2026-01-04 14:56
 
 Current behavior:
 
-- Codebase needs to be synced to secondary remote: https://github.com/panyeroa1/uni-orbit.git
+- Codebase needs to be synced to secondary remote: <https://github.com/panyeroa1/uni-orbit.git>
 
 Plan and scope:
 
@@ -1534,7 +1534,7 @@ Timestamp: 2026-01-04 14:57
 
 Summary of what actually changed:
 
-- Force pushed main branch to https://github.com/panyeroa1/uni-orbit.git.
+- Force pushed main branch to <https://github.com/panyeroa1/uni-orbit.git>.
 
 How it was tested:
 
@@ -1675,7 +1675,7 @@ Timestamp: 2026-01-04 15:35
 Current behavior:
 
 - Codebase updated with critical patches and reconnection fixes.
-- Needs to be synced to origin remote: https://github.com/panyeroa1/ooo.git
+- Needs to be synced to origin remote: <https://github.com/panyeroa1/ooo.git>
 
 Plan and scope:
 
@@ -1687,7 +1687,7 @@ Timestamp: 2026-01-04 15:36
 
 Summary of what actually changed:
 
-- Force pushed updated main branch to https://github.com/panyeroa1/ooo.git.
+- Force pushed updated main branch to <https://github.com/panyeroa1/ooo.git>.
 
 How it was tested:
 
@@ -1714,7 +1714,7 @@ Current behavior:
 Plan and scope:
 
 - Remove duplicate cleanup lines in PageClientImpl.tsx.
-- Update OLLAMA_BASE_URL to https://ollama.com in .env.local.
+- Update OLLAMA_BASE_URL to <https://ollama.com> in .env.local.
 - Refactor app/api/translate/route.ts to use /api/chat and handle the correct response format.
 
 END LOG
@@ -1997,9 +1997,7 @@ Test result:
 
 - PASS
 
-------------------------------------------------------------
-STANDARD TASK BLOCK
-------------------------------------------------------------
+## STANDARD TASK BLOCK
 
 Task ID: T-0050
 Title: Update Branding to Eburon
@@ -2084,9 +2082,7 @@ Known limitations or follow-up tasks:
 
 - None
 
-------------------------------------------------------------
-STANDARD TASK BLOCK
-------------------------------------------------------------
+## STANDARD TASK BLOCK (2)
 
 Task ID: T-0051
 Title: Fix Translator Plugin Build and Integration
@@ -2159,9 +2155,8 @@ Known limitations or follow-up tasks:
 
 - Translator plugin needs manual testing in browser
 - May need to set Next.js env variable for Gemini API key to pass to iframe
-------------------------------------------------------------
-STANDARD TASK BLOCK
-------------------------------------------------------------
+
+## STANDARD TASK BLOCK (3)
 
 Task ID: T-0052
 Title: Meeting UI Refinement - Palette and Consolidation
@@ -2244,9 +2239,7 @@ Known limitations or follow-up tasks:
 
 - None
 
-------------------------------------------------------------
-STANDARD TASK BLOCK
-------------------------------------------------------------
+## STANDARD TASK BLOCK (4)
 
 Task ID: T-0053
 Title: Branding Consistency Sweep - Eburon Exclusive
@@ -2328,9 +2321,7 @@ Known limitations or follow-up tasks:
 
 - None
 
-------------------------------------------------------------
-COMPACT MINI TASK FORMAT
-------------------------------------------------------------
+### COMPACT MINI TASK FORMAT
 
 Task ID: T-0054
 Title: Fix Inline Styles in Translator Plugin Page
@@ -2347,9 +2338,7 @@ End log:
 - Tests: Verified build passes and UI remains consistent.
 - Status: DONE
 
-------------------------------------------------------------
-STANDARD TASK BLOCK
-------------------------------------------------------------
+## STANDARD TASK BLOCK (5)
 
 Task ID: T-0055
 Title: Add Transcription and Translation Buttons to Navbar
@@ -3058,8 +3047,8 @@ Plan and scope for this task:
 - Add `selectedOutputDeviceId` state and UI in `TranslatorDock`.
 - Automate muting:
 
-    - Mute remote audio tracks when entering `listening` mode.
-    - Ensure microphone is muted when entering `listening` mode.
+  - Mute remote audio tracks when entering `listening` mode.
+  - Ensure microphone is muted when entering `listening` mode.
 - Update `playNextAudio` to use `setSinkId` (if supported) for the `AudioContext`.
 - Fix build/runtime errors related to Supabase imports and Next.js cache.
 
@@ -3879,7 +3868,7 @@ START LOG (fill this before you start coding)
 Timestamp: 2026-01-10 00:36
 Current behavior or state:
 
-- Codebase is local and needs to be synchronized with https://github.com/panyeroa1/ooo.git on the main branch.
+- Codebase is local and needs to be synchronized with <https://github.com/panyeroa1/ooo.git> on the main branch.
 
 Plan and scope for this task:
 
@@ -3901,7 +3890,7 @@ Risks or things to watch out for:
 WORK CHECKLIST
 
 - [x] Check git status and remotes
-- [x] Add remote https://github.com/panyeroa1/ooo.git
+- [x] Add remote <https://github.com/panyeroa1/ooo.git>
 - [x] Stage all changes
 - [x] Commit and push to main
 - [x] Verify push result
@@ -4020,7 +4009,7 @@ Plan and scope for this task:
 
 - Stage all changes.
 - Commit with message "feat: integrate Orbit Mic with Deepgram and Firebase".
-- Push to `https://github.com/panyeroa1/ooo.git` (remote `ooo`).
+- Push to <https://github.com/panyeroa1/ooo.git> (remote `ooo`).
 
 Files or modules expected to change:
 
@@ -4034,7 +4023,7 @@ WORK CHECKLIST
 
 - [x] Stage changes
 - [x] Commit
-- [x] Push to ooo 
+- [x] Push to ooo
 
 END LOG
 
@@ -4334,7 +4323,7 @@ Risks or things to watch out for:
 
 - User might think it's broken if the delay is too long (speaking 1 sentence and pausing).
 - Will keep interim updates local? No, "shipping to save" implies blocking the update. I will block the *final* update.
-- Actually, I'll allow interim updates to show *current* progress, but only *commit* (clean text) every 2 sentences. 
+- Actually, I'll allow interim updates to show *current* progress, but only *commit* (clean text) every 2 sentences.
 - Wait, if I show interim,  updates.  drives the UI.
 - The user said "shipping to save".
 - If I update UI but not DB, they might be out of sync.
@@ -4692,3 +4681,270 @@ Tests:
 - Git Push: SUCCESS.
 Result: PASS
 Status: DONE
+
+Task ID: T-0046
+Title: Fix LiveKit Stability and STT Bugs
+Status: DONE
+Owner: Miles
+
+START LOG
+
+Timestamp: 2026-01-12 14:15
+Plan:
+
+- Increase LiveKit token TTL to 2h to fix RegionUrlProvider errors.
+- Fix branding and logic errors in `stt/index.html` (startDeepgram -> startOrbit).
+- Revert translation model fallback to gemini-1.5-flash for reliability.
+Risks:
+
+- None significant; changes are localized.
+
+WORK CHECKLIST
+
+- [x] Update token TTL <!-- id: 4 -->
+- [x] Fix `stt/index.html` logic <!-- id: 5 -->
+- [x] Revert translation model <!-- id: 6 -->
+- [x] Verify fixes <!-- id: 7 -->
+
+END LOG
+
+Timestamp: 2026-01-12 14:20
+Summary of what actually changed:
+
+- Increased LiveKit token TTL to 2 hours.
+- Fixed `stt/index.html` function names and client initialization.
+- Reverted translation model to `gemini-1.5-flash`.
+Files actually modified:
+- app/api/connection-details/route.ts
+- stt/index.html
+- app/api/orbit/translate/route.ts
+How it was tested:
+- Manual code review and verification of token expiration.
+Test result: PASS
+Known limitations: None
+
+Task ID: T-0047
+Title: Implement Bidirectional Orbit Translator
+Status: DONE
+Owner: Miles
+
+START LOG
+
+Timestamp: 2026-01-12 14:30
+Plan:
+
+- Create `useOrbitTranslator` hook for data channel messaging.
+- Implement per-participant audio muting when translation is enabled.
+- Create `OrbitTranslatorPanel` component with language selection and translation display.
+- Integrate into PageClientImpl.tsx.
+Risks:
+
+- Latency in translation pipeline may cause noticeable delays.
+
+WORK CHECKLIST
+
+- [x] Hook STT output to translation API
+- [x] Broadcast translated text via LiveKit Data Channel
+- [x] Ensure local user does NOT synthesize their own outbound translation
+- [x] Listen for incoming translation messages on Data Channel
+- [x] Mute raw audio from remote participants when translation is enabled
+- [x] Synthesize received translations via TTS and play locally
+- [x] Add translation toggle UI to sidebar
+- [x] Restore raw audio when translation is disabled
+
+END LOG
+
+Timestamp: 2026-01-12 14:35
+Summary of what actually changed:
+
+- Created `lib/orbit/hooks/useOrbitTranslator.ts` for data channel messaging and audio muting.
+- Created `lib/orbit/components/OrbitTranslatorPanel.tsx` for sidebar UI.
+- Updated `PageClientImpl.tsx` to use new component.
+Files actually modified:
+- lib/orbit/hooks/useOrbitTranslator.ts (NEW)
+- lib/orbit/components/OrbitTranslatorPanel.tsx (NEW)
+- app/rooms/[roomName]/PageClientImpl.tsx
+How it was tested:
+- TypeScript compilation: PASS
+- Manual UI testing required for full verification
+Test result: PASS (compilation)
+Known limitations: Translation latency ~500ms-2s
+
+Task ID: T-0048
+Title: Implement Floor Control for Orbit Translator
+Status: DONE
+Owner: Miles
+
+START LOG
+
+Timestamp: 2026-01-12 16:05
+Plan:
+
+- Add `isSourceSpeaker` prop to `useOrbitTranslator` hook.
+- Implement 25% audio ducking during TTS playback.
+- Update `OrbitTranslatorPanel` with floor control UI.
+- Pass floor control props from `PageClientImpl`.
+Risks:
+
+- None significant; uses existing roomStateService.
+
+WORK CHECKLIST
+
+- [x] Add `isSourceSpeaker` prop
+- [x] Update ducking to 25%
+- [x] Show current floor holder in UI
+- [x] Add Take Floor / Release Floor buttons
+- [x] Pass props from PageClientImpl
+
+END LOG
+
+Timestamp: 2026-01-12 16:15
+Summary of what actually changed:
+
+- `useOrbitTranslator.ts`: Added `isSourceSpeaker` prop, 25% ducking, conditional outbound.
+- `OrbitTranslatorPanel.tsx`: Floor control section with Take/Release buttons.
+- `PageClientImpl.tsx`: Passes floor control props to panel.
+Files actually modified:
+- lib/orbit/hooks/useOrbitTranslator.ts
+- lib/orbit/components/OrbitTranslatorPanel.tsx
+- app/rooms/[roomName]/PageClientImpl.tsx
+How it was tested:
+- TypeScript compilation: PASS
+Test result: PASS
+Known limitations: Requires manual testing with multiple participants.
+
+## STANDARD TASK BLOCK (6)
+
+Task ID: T-0049
+Title: Build Stabilization & Runtime Loop Refinement
+Status: DONE
+Owner: Miles
+
+START LOG
+
+Timestamp: 2026-01-12 16:55
+Current behavior or state:
+
+- Build failing due to RoomState type mismatch in OrbitApp.tsx.
+- Module parse error in PageClientImpl.tsx due to room identifier conflict.
+- Runtime "Maximum update depth exceeded" errors in useOrbitTranslator.ts and PageClientImpl.tsx.
+
+Plan and scope for this task:
+
+- Synchronize RoomState initializers.
+- Rename conflicting room variable to lkRoom.
+- Refactor useOrbitTranslator to break state-effect circular dependency.
+- Consolidate resize listeners in PageClientImpl to prevent redundant registrations.
+
+Files or modules expected to change:
+
+- [OrbitApp.tsx](file:///Users/developer/joe-1/lib/orbit/OrbitApp.tsx)
+- [PageClientImpl.tsx](file:///Users/developer/joe-1/app/rooms/[roomName]/PageClientImpl.tsx)
+- [useOrbitTranslator.ts](file:///Users/developer/joe-1/lib/orbit/hooks/useOrbitTranslator.ts)
+
+Risks or things to watch out for:
+
+- Breaking existing room logic during rename.
+
+WORK CHECKLIST
+
+- [x] Fix RoomState initialization <!-- id: 8 -->
+- [x] Resolve room name conflict <!-- id: 9 -->
+- [x] Fix recursion in useOrbitTranslator <!-- id: 10 -->
+- [x] Optimize listeners in PageClientImpl <!-- id: 11 -->
+- [x] Verify production build passes <!-- id: 12 -->
+
+END LOG
+
+Timestamp: 2026-01-12 16:58
+Summary of what actually changed:
+
+- Stabilized build by fixing type mismatches and identifier collisions.
+- Elimited infinite update loops by removing redundant effect dependencies.
+- Improved UI performance by consolidating event listeners.
+- Fixed Markdown linting issues across all documentation.
+
+Files actually modified:
+
+- [OrbitApp.tsx](file:///Users/developer/joe-1/lib/orbit/OrbitApp.tsx)
+- [PageClientImpl.tsx](file:///Users/developer/joe-1/app/rooms/[roomName]/PageClientImpl.tsx)
+- [useOrbitTranslator.ts](file:///Users/developer/joe-1/lib/orbit/hooks/useOrbitTranslator.ts)
+- [tasks.md](file:///Users/developer/joe-1/tasks.md)
+
+How it was tested:
+
+- npm run build: SUCCESS (Exit code 0)
+- Manual dragging of Orb: Smooth, no errors.
+- Translation Toggle: Mutes/unmutes correctly without loop errors.
+
+Test result: PASS
+Known limitations or follow-up tasks: None
+
+------------------------------------------------------------
+STANDARD TASK BLOCK
+------------------------------------------------------------
+
+Task ID: T-0050
+Title: Orb Enhanced Visualizer and Settings Modal
+Status: DONE
+Owner: Miles
+
+START LOG
+
+Timestamp: 2026-01-12 17:15
+Current behavior or state:
+- "Outside of room context" error due to hook placement.
+- Orb is a static icon with basic settings.
+- No option to hear raw audio or select receiving language easily.
+
+Plan and scope for this task:
+- Refactor PageClientImpl.tsx to correctly wrap components in RoomContext.
+- Transform Orb into a dynamic audio visualizer for active speakers.
+- Implement multi-page "SOURCE" and "RECEIVING" modal for Orb settings.
+- Add "Hear Raw Audio" and "Receiving Language" controls.
+- Synchronize Sidebar with global translation state.
+
+Files or modules expected to change:
+- app/rooms/[roomName]/PageClientImpl.tsx
+- lib/orbit/hooks/useOrbitTranslator.ts
+- lib/orbit/components/OrbitTranslatorPanel.tsx
+
+Risks or things to watch out for:
+- Prop drilling causing unnecessary re-renders.
+- Accessibility requirements for new UI elements.
+
+WORK CHECKLIST
+
+- [x] Refactor room context wrapper
+- [x] Implement multi-page modal logic
+- [x] Add receiving language dropdown
+- [x] Add raw audio toggle
+- [x] Update visualizer for remote audio levels
+- [x] Add accessibility titles/aria-labels
+- [x] Verify production build
+
+END LOG
+
+Timestamp: 2026-01-12 17:25
+Summary of what actually changed:
+- Successfully refactored PageClientImpl.tsx into Headless/Inner components to stabilize room context.
+- Implemented a dual-tab settings modal (Source & Receiving) within the Orb for streamlined control.
+- Updated Orb visualization logic to use real-time audio levels from the translator speaker.
+- Expanded language options and synchronized the sidebar panel with core translation state.
+
+Files actually modified:
+- app/rooms/[roomName]/PageClientImpl.tsx
+- lib/orbit/hooks/useOrbitTranslator.ts
+- lib/orbit/components/OrbitTranslatorPanel.tsx
+- tasks.md
+- walkthrough.md
+
+How it was tested:
+- npm run build: SUCCESS
+- Manual verification of tab switching and language persistence: SUCCESS
+- Accessibility sweep: titles and aria-labels added to all new interactive elements.
+
+Test result: PASS plus short notes: Components are stable and UX is improved.
+
+Known limitations or follow-up tasks: None
+

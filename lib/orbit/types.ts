@@ -35,8 +35,13 @@ export interface QueueEntry {
   requestedAt: number;
 }
 
+export type ConversationMode = 'manual' | 'round-robin';
+
 export interface RoomState {
+  hostId: string | null;
   activeSpeaker: SpeakerInfo | null;
+  isFloorLocked: boolean;
+  conversationMode: ConversationMode;
   raiseHandQueue: QueueEntry[];
   lockVersion: number;
 }
