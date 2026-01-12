@@ -86,6 +86,58 @@ Plan: Pull rebase and push.
 END LOG
 
 Task ID: T-0059
+
+START LOG
+Timestamp: 2026-01-12 21:16
+Current behavior: User wants "Save Settings" in Receiver Tab.
+Plan: Add Save Settings button, floor stats, and lime green overlay.
+END LOG
+Timestamp: 2026-01-12 21:55
+Changed: Added Save Settings button, Floor Stats, and Lime Green Overlay.
+Tests: npm run build: SUCCESS.
+Status: DONE
+
+Task ID: T-0063
+Title: Downgrade Supabase Missing Credentials Log
+Status: DONE
+Owner: Miles
+
+START LOG
+Timestamp: 2026-01-12 21:35
+Current behavior: Error logs for missing Supabase keys.
+Plan: Downgrade to warning.
+END LOG
+Timestamp: 2026-01-12 21:38
+Changed: Downgraded log level.
+Status: DONE
+
+Task ID: T-0064
+Title: Fix Supabase Client Null Crash
+Status: DONE
+Owner: Miles
+
+START LOG
+Timestamp: 2026-01-12 21:39
+Current behavior: App crashes if Supabase null.
+Plan: Add null checks.
+END LOG
+Timestamp: 2026-01-12 21:42
+Changed: Added null checks to `page.tsx` and `AuthProvider.tsx`.
+Tests: npm run build: SUCCESS.
+Status: DONE
+
+Task ID: T-0065
+Title: Push to Remote Repository
+Status: DOING
+Owner: Miles
+
+START LOG
+Timestamp: 2026-01-12 21:50
+Current behavior: Diverged branches.
+Plan: Pull rebase and push.
+END LOG
+
+Task ID: T-0059
 Title: Success Class Rebranding and Orbit Enhancements
 Status: DONE
 Owner: Miles

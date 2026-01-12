@@ -873,7 +873,7 @@ function RoomInner(props: {
   return (
     <div className={`lk-room-container ${roomStyles.roomLayout} ${sidebarCollapsed ? roomStyles.roomLayoutCollapsed : ''}`}>
       <LayoutContextProvider value={layoutContext}>
-        <KeyboardShortcuts />
+
         <RoomAudioRenderer volume={1} />
         <ConnectionStateToast />
 
@@ -904,7 +904,7 @@ function RoomInner(props: {
         </div>
         <HostCaptionOverlay words={deepgram.words} isFinal={deepgram.isFinal} isListening={deepgram.isListening} analyser={deepgram.analyser} />
         <EburonControlBar onParticipantsToggle={() => handleSidebarPanelToggle('participants')} onChatToggle={() => handleSidebarPanelToggle('chat')} onSettingsToggle={() => handleSidebarPanelToggle('settings')} onOrbitToggle={() => handleSidebarPanelToggle('orbit')} onGridToggle={() => setIsGridView(!isGridView)} isGridView={isGridView} onTranscriptionToggle={handleTranscriptionToggle} isParticipantsOpen={!sidebarCollapsed && activeSidebarPanel === 'participants'} isChatOpen={!sidebarCollapsed && activeSidebarPanel === 'chat'} isSettingsOpen={!sidebarCollapsed && activeSidebarPanel === 'settings'} isOrbitOpen={!sidebarCollapsed && activeSidebarPanel === 'orbit'} isTranscriptionOpen={isTranscriptionEnabled} isAppMuted={isAppMuted} onAppMuteToggle={setIsAppMuted} roomState={roomState} userId={user?.id} audioCaptureOptions={audioCaptureOptions} onCaptionToggle={() => setIsTranscriptionEnabled(!isTranscriptionEnabled)} isCaptionOpen={isTranscriptionEnabled} onLanguageChange={setTargetLanguage} orbitMicState={orbitMicState} />
-        <DebugMode /><RecordingIndicator />
+        <RecordingIndicator />
       </LayoutContextProvider>
     </div>
   );
