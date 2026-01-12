@@ -618,6 +618,21 @@ function RoomInner(props: {
       sessionStorage.setItem('orbit_is_listening', String(isListening));
     }
   }, [isListening]);
+
+  // Sync translation config to room metadata for agents
+  React.useEffect(() => {
+    if (localParticipant.permissions?.canPublish /* only if host/speaker to avoid conflicts */ || hostId === user?.id) {
+       const metadata = {
+         source_language: sourceLanguage,
+         target_language: targetLanguage,
+         updated_at: Date.now()
+       };
+       lkRoom.localParticipant.setMetadata(JSON.stringify({ 
+         ...JSON.parse(lkRoom.localParticipant.metadata || '{}'),
+         translation_config: metadata 
+       }));
+    }
+  }, [sourceLanguage, targetLanguage, lkRoom, hostId, user?.id]);
   const [hearRawAudio, setHearRawAudio] = React.useState(false);
   const { playClick, playToggle } = useSound();
   const { localParticipant } = useLocalParticipant();
@@ -936,6 +951,18 @@ function RoomInner(props: {
                 analyser: deepgram.analyser // Use accurate visualizer
             }}
             sourceLanguage={sourceLanguage} setSourceLanguage={setSourceLanguage}
+            // Voice Settings Sync
+            onVoiceSettingsChange={(settings) => {
+                if (localParticipant) {
+                    try {
+                        const currentMetadata = localParticipant.metadata ? JSON.parse(localParticipant.metadata) : {};
+                        const newMetadata = { ...currentMetadata, voice_settings: settings };
+                        localParticipant.setMetadata(JSON.stringify(newMetadata));
+                    } catch (e) {
+                        console.error("Failed to sync voice settings metadata", e);
+                    }
+                }
+            }}
             // Stats
             totalParticipants={total}
             speakingCount={speaking}

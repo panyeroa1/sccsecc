@@ -88,8 +88,8 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
 
   const start = useCallback(async (deviceId?: string) => {
     const apiKey = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY;
-    if (!apiKey || apiKey === 'YOUR_DEEPGRAM_API_KEY' || apiKey.startsWith('6c275acd19')) {
-      console.warn("[Orbit] Deepgram Key is missing or known invalid. Voice transcription disabled.");
+    if (!apiKey || apiKey === 'YOUR_DEEPGRAM_API_KEY') {
+      console.warn("[Orbit] Deepgram Key is missing. Voice transcription disabled.");
       return; 
     }
 

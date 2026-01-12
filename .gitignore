@@ -38,5 +38,6 @@ yarn-error.log*
 *.tsbuildinfo
 node_modules
 
-# Eburon tasks
-tasks.md
+# Python cache
+__pycache__/
+*.pyc

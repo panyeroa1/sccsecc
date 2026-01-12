@@ -45,6 +45,8 @@ interface OrbitTranslatorPanelProps {
   isProcessing: boolean;
   error: string | null;
   aiAgentOnline?: boolean;
+  // Voice controls
+  onVoiceSettingsChange?: (settings: { speed: number; volume: number; emotion: string }) => void;
 }
 
 export function OrbitTranslatorPanel({ 
@@ -69,6 +71,7 @@ export function OrbitTranslatorPanel({
 
   error,
   aiAgentOnline = false,
+  onVoiceSettingsChange,
   // Stats
   totalParticipants = 1,
   speakingCount = 0,
@@ -80,7 +83,20 @@ export function OrbitTranslatorPanel({
 }) {
   const [activeTab, setActiveTab] = React.useState<'source' | 'receiver'>('source');
   const [isRequestingFloor, setIsRequestingFloor] = React.useState(false);
+  const [voiceSettings, setVoiceSettings] = React.useState({ speed: 1.0, volume: 1.0, emotion: 'neutral' });
   const { playClick, playToggle } = useSound();
+
+  const handleVoiceSettingChange = (key: string, value: any) => {
+    const newSettings = { ...voiceSettings, [key]: value };
+    setVoiceSettings(newSettings);
+    if (onVoiceSettingsChange) {
+      onVoiceSettingsChange({
+        ...newSettings,
+        speed: parseFloat(newSettings.speed as any),
+        volume: parseFloat(newSettings.volume as any)
+      });
+    }
+  };
 
   // Toggle listening mode
   const handleListenToggle = React.useCallback(() => {
@@ -366,6 +382,59 @@ export function OrbitTranslatorPanel({
                   <input type="checkbox" checked={hearRawAudio} onChange={() => { setHearRawAudio(!hearRawAudio); playToggle(!hearRawAudio); }} aria-label="Toggle Mixed Audio" />
                   <span className={sharedStyles.sidebarSwitchTrack}><span className={sharedStyles.sidebarSwitchThumb} /></span>
                 </label>
+              </div>
+
+              {/* Sonic-3 Advanced Controls */}
+              <div style={{ marginTop: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ fontSize: '10px', opacity: 0.6, marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sonic-3 AI Voice Controls</div>
+                
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '11px', opacity: 0.8 }}>Playback Speed</label>
+                    <span style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 600 }}>{voiceSettings.speed}x</span>
+                  </div>
+                  <input 
+                    type="range" min="0.6" max="1.5" step="0.1" 
+                    value={voiceSettings.speed} 
+                    onChange={(e) => handleVoiceSettingChange('speed', e.target.value)}
+                    style={{ width: '100%', accentColor: '#fbbf24', cursor: 'pointer' }} 
+                    aria-label="Playback Speed"
+                    title="Adjust playback speed"
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '11px', opacity: 0.8 }}>Volume Multiplier</label>
+                    <span style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 600 }}>{voiceSettings.volume}x</span>
+                  </div>
+                  <input 
+                    type="range" min="0.5" max="2.0" step="0.1" 
+                    value={voiceSettings.volume} 
+                    onChange={(e) => handleVoiceSettingChange('volume', e.target.value)}
+                    style={{ width: '100%', accentColor: '#fbbf24', cursor: 'pointer' }} 
+                    aria-label="Volume Multiplier"
+                    title="Adjust volume multiplier"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '11px', opacity: 0.8, display: 'block', marginBottom: '6px' }}>Emotional Tone</label>
+                  <select 
+                    value={voiceSettings.emotion}
+                    onChange={(e) => handleVoiceSettingChange('emotion', e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: '12px', cursor: 'pointer' }}
+                    aria-label="Emotional Tone"
+                    title="Select emotional tone for the AI voice"
+                  >
+                    <option value="neutral">Neutral (Default)</option>
+                    <option value="happy">Happy & Bright</option>
+                    <option value="excited">Excited / High Energy</option>
+                    <option value="serious">Serious / Official</option>
+                    <option value="sad">Soft / Melancholic</option>
+                    <option value="angry">Firm / Assertive</option>
+                  </select>
+                </div>
               </div>
 
               {/* Incoming Translations Feed */}
