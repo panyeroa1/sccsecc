@@ -137,7 +137,7 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
       analyserRef.current = analyser;
 
       const model = options.model || 'nova-3';
-      const language = options.language || 'en';
+      const language = currentLanguage || 'en';
       
       const params = new URLSearchParams({
         model,
@@ -188,13 +188,22 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
       socketRef.current = socket;
 
       socket.onopen = () => {
+        console.log("🔌 Orbit: Connected to engine");
         setIsListening(true);
         setError(null);
         startingRef.current = false;
         
         try {
+          // Select compatible mimeType
+          const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+            ? 'audio/webm;codecs=opus' 
+            : MediaRecorder.isTypeSupported('audio/webm') 
+              ? 'audio/webm' 
+              : 'audio/mp4';
+
+          console.log(`🔌 Orbit: Using mimeType ${mimeType}`);
           const recorder = new MediaRecorder(stream, { 
-            mimeType: 'audio/webm;codecs=opus',
+            mimeType,
             audioBitsPerSecond: 128000
           });
           recorderRef.current = recorder;
@@ -206,8 +215,9 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
           };
 
           recorder.start(100);
-        } catch (recErr) {
-          setError('Failed to start audio recording');
+        } catch (recErr: any) {
+          console.error("❌ Orbit: MediaRecorder error:", recErr);
+          setError(`MediaRecorder error: ${recErr.message}`);
           stop();
         }
       };
@@ -238,33 +248,44 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
       };
 
       socket.onerror = (error) => {
+        console.error("❌ Orbit: WebSocket error:", error);
         setError('Orbit connection error');
         startingRef.current = false;
         stop();
       };
 
       socket.onclose = (event) => {
+        console.log(`🔌 Orbit: Connection closed (${event.code})`);
         setIsListening(false);
         startingRef.current = false;
       };
 
     } catch (e: any) {
+      console.error("❌ Orbit: Start failed:", e);
       setError(e.message || 'Microphone access denied');
       startingRef.current = false;
       stop();
     }
-  }, [options.model, options.diarize, options.keywords, stop, options.language]);
+  }, [options.model, options.diarize, options.keywords, stop, currentLanguage]);
 
   const setLanguage = useCallback((lang: string) => {
     if (lang !== currentLanguage) {
       setCurrentLanguage(lang);
-      if (isListening) {
-        const currentDeviceId = recorderRef.current?.stream.getAudioTracks()[0]?.getSettings().deviceId;
-        stop();
-        setTimeout(() => start(currentDeviceId), 100);
-      }
     }
-  }, [currentLanguage, isListening, stop, start]);
+  }, [currentLanguage]);
+
+  // Restart when language changes while listening
+  useEffect(() => {
+    if (isListening && currentLanguage !== options.language && options.language) {
+       console.log(`🔄 Orbit: Language changed to ${options.language}, restarting...`);
+       const currentDeviceId = streamRef.current?.getAudioTracks()[0]?.getSettings().deviceId;
+       stop();
+       const timer = setTimeout(() => {
+         start(currentDeviceId);
+       }, 200);
+       return () => clearTimeout(timer);
+    }
+  }, [isListening, options.language, currentLanguage, stop, start]);
 
   // Cleanup on unmount
   useEffect(() => {
