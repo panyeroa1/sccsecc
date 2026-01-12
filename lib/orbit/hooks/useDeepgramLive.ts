@@ -182,26 +182,28 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
         });
       }
 
+      params.append('token', apiKey.trim());
+
       const wsUrl = `wss://api.deepgram.com/v1/listen?${params.toString()}`;
+      console.log(`🔌 Orbit: Connecting to ${wsUrl.replace(/token=[^&]+/, 'token=***')}`);
       
-      const socket = new WebSocket(wsUrl, ['token', apiKey.trim()]);
+      const socket = new WebSocket(wsUrl);
       socketRef.current = socket;
 
-      socket.onopen = () => {
-        console.log("🔌 Orbit: Connected to engine");
+      socket.onopen = (event) => {
+        console.log("✅ Orbit: WebSocket opened", event);
         setIsListening(true);
         setError(null);
         startingRef.current = false;
         
         try {
-          // Select compatible mimeType
           const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
             ? 'audio/webm;codecs=opus' 
             : MediaRecorder.isTypeSupported('audio/webm') 
               ? 'audio/webm' 
               : 'audio/mp4';
 
-          console.log(`🔌 Orbit: Using mimeType ${mimeType}`);
+          console.log(`🔌 Orbit: Using MediaRecorder mimeType: ${mimeType}`);
           const recorder = new MediaRecorder(stream, { 
             mimeType,
             audioBitsPerSecond: 128000
@@ -215,8 +217,9 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
           };
 
           recorder.start(100);
+          console.log("🔌 Orbit: MediaRecorder started");
         } catch (recErr: any) {
-          console.error("❌ Orbit: MediaRecorder error:", recErr);
+          console.error("❌ Orbit: MediaRecorder start failed:", recErr);
           setError(`MediaRecorder error: ${recErr.message}`);
           stop();
         }
@@ -243,25 +246,29 @@ export function useDeepgramLive(options: UseDeepgramLiveOptions = {}): UseDeepgr
              setDetectedLanguage(data.results.channels[0].detected_language);
           }
         } catch (e) {
-          console.error('Error parsing Orbit response:', e);
+          console.error('❌ Orbit: Error parsing response:', e);
         }
       };
 
       socket.onerror = (error) => {
-        console.error("❌ Orbit: WebSocket error:", error);
+        console.error("❌ Orbit: WebSocket error event:", error);
         setError('Orbit connection error');
         startingRef.current = false;
-        stop();
+        // Don't call stop() immediately, let onclose handle cleanup if it triggers
       };
 
       socket.onclose = (event) => {
-        console.log(`🔌 Orbit: Connection closed (${event.code})`);
+        console.log(`🔌 Orbit: WebSocket closed. Code: ${event.code}, Reason: ${event.reason || 'none'}`);
         setIsListening(false);
         startingRef.current = false;
+        
+        if (event.code !== 1000 && event.code !== 1001) {
+           setError(`Orbit connection closed: ${event.code} ${event.reason || ''}`);
+        }
       };
 
     } catch (e: any) {
-      console.error("❌ Orbit: Start failed:", e);
+      console.error("❌ Orbit: Start failed with exception:", e);
       setError(e.message || 'Microphone access denied');
       startingRef.current = false;
       stop();
