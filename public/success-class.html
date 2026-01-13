@@ -764,7 +764,7 @@ function initRecvViz() {
 }
 
 async function initSourceViz(stream) {
-    if (inputCtx) inputCtx.close();
+    if (inputCtx && inputCtx.state !== 'closed') inputCtx.close();
     const AC = window.AudioContext || window.webkitAudioContext;
     inputCtx = new AC();
     inputAnalyser = inputCtx.createAnalyser();
@@ -878,41 +878,53 @@ async function processTTS() {
     processTTS();
 }
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognizer = null;
+const DEEPGRAM_API_KEY = "52c4137114e2f86597c78326be7b512daae7f266";
+let dgSocket = null;
+let mediaRecorder = null;
 let listening = false;
+let micStream = null;
 
 async function startBroadcasting() {
-    if (!SpeechRecognition) return alert("WebSpeech API not supported");
     if (listening) return stopBroadcasting();
+    if (!DEEPGRAM_API_KEY) return alert("Deepgram API key missing");
 
+    let stream;
     try {
         const deviceId = ui.micSelect.value;
         const constraints = { audio: deviceId === 'default' ? true : { deviceId: { exact: deviceId } } };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        micStream = stream;
         initSourceViz(stream);
     } catch(e) { return alert("Mic Error"); }
 
-    recognizer = new SpeechRecognition();
-    recognizer.continuous = true;
-    recognizer.interimResults = true;
-    recognizer.lang = ui.srcLang.value;
+    const params = new URLSearchParams({
+        model: "nova-2",
+        language: ui.srcLang.value || "en-US",
+        interim_results: "true",
+        smart_format: "true",
+        punctuate: "true"
+    });
+    const dgUrl = `wss://api.deepgram.com/v1/listen?${params.toString()}`;
+    dgSocket = new WebSocket(dgUrl, ["token", DEEPGRAM_API_KEY]);
 
-    recognizer.onstart = () => {
+    dgSocket.onopen = () => {
         listening = true;
         ui.floorText.textContent = "On Air";
         ui.floorDot.className = "dot active";
         ui.broadcastBtn.textContent = "Stop Broadcasting";
         ui.broadcastBtn.className = "btn btn-red";
         ui.liveCaptionBar.textContent = "Listening...";
+        startStreamingAudio(stream);
     };
-    recognizer.onend = () => { if (listening) recognizer.start(); else stopBroadcasting(); };
-    recognizer.onresult = async (e) => {
-        let interim = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-            const res = e.results[i];
-            if (res.isFinal) {
-                const txt = res[0].transcript.trim();
+
+    dgSocket.onmessage = async (msg) => {
+        const data = JSON.parse(msg.data);
+        if (data.channel && data.channel.alternatives && data.channel.alternatives[0]) {
+            const alt = data.channel.alternatives[0];
+            const transcript = alt.transcript;
+
+            if (transcript && data.is_final) {
+                const txt = transcript.trim();
                 if (txt) {
                     const tl = getGoogleTranslateCode(ui.tgtLang.value);
                     const targetLang = ui.tgtLang.value;
@@ -922,25 +934,56 @@ async function startBroadcasting() {
                     const trans = d[0].map(x=>x[0]).join("");
                     if(window.broadcastTranslation) window.broadcastTranslation(txt, trans, "auto", targetLang);
                 }
-            } else interim += res[0].transcript;
+            } else {
+                ui.liveCaptionBar.textContent = transcript || "Listening...";
+            }
         }
-        ui.liveCaptionBar.textContent = interim || (listening ? "Listening..." : "");
     };
-    recognizer.start();
+
+    dgSocket.onerror = () => {
+        ui.toast.textContent = "Deepgram connection error";
+        ui.toast.style.background = "#ef4444";
+        ui.toast.classList.add("show");
+        setTimeout(() => ui.toast.classList.remove("show"), 3000);
+    };
+
+    dgSocket.onclose = () => {
+        if (listening) stopBroadcasting();
+    };
 }
 
 function stopBroadcasting() {
     listening = false;
-    if (recognizer) recognizer.stop();
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    mediaRecorder = null;
+    if (dgSocket) dgSocket.close();
+    dgSocket = null;
+    if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+    }
     ui.floorText.textContent = "Mic Off";
     ui.floorDot.className = "dot";
     ui.broadcastBtn.textContent = "Start Broadcasting";
     ui.broadcastBtn.className = "btn btn-green";
     ui.liveCaptionBar.textContent = "";
-    if (inputCtx) inputCtx.close();
+    if (inputCtx && inputCtx.state !== 'closed') inputCtx.close();
 }
 
 ui.broadcastBtn.addEventListener('click', startBroadcasting);
+
+function startStreamingAudio(stream) {
+    if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        return alert("Browser not supported (Audio/WebM)");
+    }
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    mediaRecorder.addEventListener('dataavailable', event => {
+        if (event.data.size > 0 && dgSocket && dgSocket.readyState === 1) {
+            dgSocket.send(event.data);
+        }
+    });
+    mediaRecorder.start(250);
+}
 
 const LANGUAGES = [
   { code: 'en-US', gtCode: 'en', name: 'English (US)', flag: '🇺🇸' },
@@ -1013,8 +1056,9 @@ function getGoogleTranslateCode(langCode) {
 /* SAVE PREFERENCES EVENT LISTENERS */
 ui.srcLang.addEventListener('change', (e) => {
     localStorage.setItem('orbit_src_lang', e.target.value);
-    if (recognizer && listening) {
-        recognizer.lang = e.target.value;
+    if (listening) {
+        stopBroadcasting();
+        startBroadcasting();
     }
 });
 
