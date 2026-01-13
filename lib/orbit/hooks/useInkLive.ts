@@ -79,7 +79,7 @@ export function useInkLive(options: UseInkLiveOptions = {}): UseInkLiveReturn {
     startingRef.current = true;
     console.log("🔌 Ink: Starting transcription engine...");
 
-    const apiKey = process.env.NEXT_PUBLIC_CARTESIA_API_KEY || process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_CARTESIA_API_KEY;
     if (!apiKey) {
       console.warn("[Ink] API Key is missing. Voice transcription disabled.");
       startingRef.current = false;
@@ -127,7 +127,7 @@ export function useInkLive(options: UseInkLiveOptions = {}): UseInkLiveReturn {
         api_key: apiKey.trim(),
       });
 
-      const wsUrl = `wss://api.cartesia.ai/stt/v1/stream?${params.toString()}`;
+      const wsUrl = `wss://api.cartesia.ai/stt/websocket?${params.toString()}`;
       console.log(`🔌 Ink: Connecting to Cartesia...`);
 
       const socket = new WebSocket(wsUrl);

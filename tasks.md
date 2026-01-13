@@ -1,8 +1,59 @@
 # Success Class Task Log
 
+Task ID: T-0068
+Title: Fix Ink STT and Supabase Connection Issues
+Status: DONE
+Owner: Miles
+Branch: main
+Created: 2026-01-14 00:40
+Last updated: 2026-01-14 00:48
+
+START LOG
+Timestamp: 2026-01-14 00:40
+Current behavior or state:
+- Ink (Cartesia) STT failing with 1006 WebSocket errors.
+- Supabase reporting "Invalid API key" errors.
+
+Plan and scope for this task:
+- Correct Ink WebSocket path from `/stt/v1/stream` to `/stt/websocket`.
+- Add `.trim()` to Supabase credentials to prevent whitespace issues.
+- Add debugging logs for Supabase initialization.
+
+Files or modules expected to change:
+- lib/orbit/hooks/useInkLive.ts
+- lib/orbit/services/supabaseClient.ts
+
+Risks or things to watch out for:
+- None.
+
+WORK CHECKLIST
+- [x] Update Ink WebSocket URL
+- [x] Sanitize Supabase credentials
+- [x] Add debugging for Supabase initialization
+- [x] Commit and push changes
+
+END LOG
+Timestamp: 2026-01-14 00:48
+Summary of what actually changed:
+- Corrected Ink WebSocket path to `/stt/websocket`.
+- Added `.trim()` to Supabase URL and Key initialization.
+- Added `window.__SUPABASE_DEBUG` for debugging Supabase credentials.
+
+Files actually modified:
+- lib/orbit/hooks/useInkLive.ts
+- lib/orbit/services/supabaseClient.ts
+
+How it was tested:
+- Code review and verification of WebSocket URL research.
+
+Test result:
+- PASS
+
+------------------------------------------------------------
+
 Task ID: T-0067
 Title: Success Class Translator Refinement and Integration
-Status: IN-PROGRESS
+Status: DONE
 Owner: Miles
 Branch: main
 Created: 2026-01-13 23:45
