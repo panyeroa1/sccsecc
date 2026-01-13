@@ -136,10 +136,10 @@
     .auth-bar {
       display: flex; gap: 8px; background: #252525; padding: 6px;
       border-radius: 10px; border: 1px solid #333;
-      min-height: 46px; /* Maintain height to prevent layout jumps */
+      min-height: 46px;
     }
 
-    .auth-input-group { flex: 1; display: none; position: relative; } /* Hidden by default */
+    .auth-input-group { flex: 1; display: none; position: relative; }
 
     .auth-input {
       width: 100%; background: #111; border: 1px solid #444; color: #fff;
@@ -164,6 +164,15 @@
     
     .my-id-label { font-size: 9px; color: var(--accent-orange); font-weight: 600; text-transform: uppercase; }
     .my-id-val { font-size: 14px; color: #fff; font-family: monospace; font-weight: 700; letter-spacing: 1px; }
+
+    /* Connected Badge (for embed mode) */
+    .connected-badge {
+      display: none; align-items: center; gap: 6px; padding: 8px 12px;
+      background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 6px; width: 100%;
+    }
+    .connected-badge .dot { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+    .connected-badge span { color: var(--accent-green); font-size: 12px; font-weight: 600; }
 
     .tabs { display: flex; background: var(--bg-panel); border-bottom: 1px solid var(--border); flex-shrink: 0; z-index: 15; }
     .tab-btn {
@@ -276,226 +285,226 @@
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    /* ROLE BADGES */
-    .role-badge {
-      display: inline-block; padding: 4px 8px; border-radius: 4px;
-      font-size: 10px; font-weight: 700; text-transform: uppercase;
-      margin-left: 8px; vertical-align: middle; letter-spacing: 0.5px;
-    }
-    .role-host { background: rgba(245, 158, 11, 0.2); color: var(--accent-orange); border: 1px solid rgba(245, 158, 11, 0.4); }
-    .role-part { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.4); } /* Green/Blueish */
-
-    /* Scrollbar */
     ::-webkit-scrollbar { width: 4px; }
-    /* Embed Mode Overrides */
-    body.embed-mode .header { display: none !important; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+    /* === EMBED MODE OVERRIDES === */
+    body.embed-mode { padding: 0; }
     body.embed-mode .modal-overlay { display: none !important; }
+    body.embed-mode .header { padding: 12px 16px; }
+    body.embed-mode .header h1 { font-size: 15px; }
     body.embed-mode .app-container { 
-      padding: 10px; 
       max-width: 100%; 
-      min-height: 100vh; 
-      height: auto; 
-      display: block; 
-      overflow-y: auto;
+      height: 100vh; 
+      border-radius: 0; 
+      border: none;
     }
-    body.embed-mode .tabs { margin-top: 10px; }
   </style>
 </head>
 
 <body>
 
-<!-- Auth Modal (Existing...) -->
-<!-- ... -->
+<!-- Welcome Modal -->
+<div id="welcomeModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+        <line x1="12" y1="19" x2="12" y2="23"></line>
+        <line x1="8" y1="23" x2="16" y2="23"></line>
+      </svg>
+    </div>
+    <div class="modal-title">Welcome to Orbit</div>
+    <div class="modal-desc">
+      Your real-time AI translation companion. <br>
+      Create an instant classroom or event session.
+    </div>
+    <button id="getStartedBtn" class="btn-large">Get Started</button>
+  </div>
+</div>
 
+<audio id="tts" autoplay></audio>
+
+<!-- Toast Message -->
+<div id="toast" class="toast">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+  Copied Successfully!
+</div>
+
+<div class="app-container">
+  
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <h1>Success Class Translator</h1>
+        <p>Supabase Powered • Real-time</p>
+      </div>
+    </div>
+
+    <!-- Auth / Room Bar -->
+    <div class="auth-bar">
+      <!-- JOIN INPUT (Shown in Receiver Tab) -->
+      <div id="authInputGroup" class="auth-input-group">
+        <input type="text" id="joinInput" class="auth-input" placeholder="ENTER CLASS ID" maxlength="6">
+        <button id="joinBtn" class="btn-join">JOIN</button>
+      </div>
+      
+      <!-- MY CLASS ID (Shown in Source Tab) -->
+      <div id="myIdGroup" class="my-id-container" title="Copy My Class ID">
+        <span class="my-id-label">MY CLASS ID</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span id="myClassId" class="my-id-val">...</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Connected Badge (Embed Mode) -->
+      <div id="connectedBadge" class="connected-badge">
+        <span class="dot active"></span>
+        <span>CONNECTED: <strong id="connectedRoomId"></strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Standard Click Handlers -->
+  <div class="tabs">
+    <button class="tab-btn active" id="btn-source">Source (Mic)</button>
+    <button class="tab-btn" id="btn-receiver">Receiver (Speaker)</button>
+  </div>
+
+  <!-- SOURCE TAB -->
+  <div id="tab-source" class="tab-content active">
+    
+    <div class="card">
+      <div class="card-label">Broadcaster Status</div>
+      <div class="card-row">
+        <div class="status-badge">
+          <span id="floorDot" class="dot"></span>
+          <span id="floorText">Mic Off</span>
+        </div>
+        <button class="btn-outline">Admin</button>
+      </div>
+      <canvas id="sourceViz" class="viz-canvas" width="400" height="60"></canvas>
+    </div>
+
+    <div>
+      <label class="card-label">My Language (Speaking)</label>
+      <select id="srcLang" title="Select source language"></select>
+    </div>
+
+    <div>
+      <label class="card-label">Microphone Input</label>
+      <select id="micSelect" title="Select microphone input">
+        <option value="default">Default Microphone</option>
+      </select>
+      <div style="font-size:11px; color:#555; margin-top:6px;">Feeds transcription engine</div>
+    </div>
+
+    <div style="margin-top: auto;">
+      <button id="broadcastBtn" class="btn btn-green">Start Broadcasting</button>
+    </div>
+
+  </div>
+
+  <!-- RECEIVER TAB -->
+  <div id="tab-receiver" class="tab-content">
+    
+    <div class="card">
+      <div class="status-badge" style="margin-bottom:10px;">
+        <span id="recvDot" class="dot"></span>
+        <span id="recvText">Waiting for audio...</span>
+      </div>
+      <canvas id="recvViz" class="viz-canvas" width="400" height="60"></canvas>
+    </div>
+
+    <div class="card card-row">
+      <div>
+        <div style="font-weight:600; font-size:14px; color:#fff;">Enable Audio</div>
+        <div style="font-size:11px; color:#666;">Play translations via TTS</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="recvToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div>
+      <label class="card-label">Translation Language</label>
+      <select id="tgtLang" title="Select translation language"></select>
+    </div>
+
+    <div>
+      <label class="card-label">Speaker Output</label>
+      <select id="speakerSelect" title="Select speaker output">
+        <option value="default">Default Speaker</option>
+      </select>
+      <div style="font-size:11px; color:#555; margin-top:6px;">Route TTS to headphones/speakers</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label" style="margin-bottom:12px;">AI Voice Controls</div>
+      <div class="range-wrap">
+        <div class="range-label-row"><span>Speed</span><span id="speedVal">1.0x</span></div>
+        <input type="range" id="speedRange" min="0.5" max="2.0" step="0.1" value="1.0">
+      </div>
+      <div class="range-wrap" style="margin-bottom:0;">
+        <div class="range-label-row"><span>Volume</span><span id="volVal">1.0x</span></div>
+        <input type="range" id="volRange" min="0.0" max="1.0" step="0.1" value="1.0">
+      </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <label class="card-label">Transcript History</label>
+      <div id="historyBox" class="history-box">
+        <div style="text-align:center; padding-top:20px; font-style:italic; opacity:0.5;">No history yet</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="liveCaptionBar" class="live-caption-bar"></div>
+
+</div>
+
+<!-- EMBED MODE DETECTION -->
 <script>
-    /* ... (Existing JS) ... */
-
-    // --- EMBED MODE LOGIC ---
+(function() {
     const urlParams = new URLSearchParams(window.location.search);
     const isEmbed = urlParams.get('embed') === 'true';
     const embedRoom = urlParams.get('roomName');
     
     if (isEmbed) {
         document.body.classList.add('embed-mode');
-        // Bypass Auth UI
-        document.getElementById('authModal').classList.add('hidden');
+        document.getElementById('welcomeModal').classList.add('hidden');
         
-        // Auto-Init Room if provided
         if (embedRoom) {
-            // Wait for Supabase to be ready (handled in module below via checking isEmbed)
-            console.log("[Embed] Auto-joining room:", embedRoom);
-            // We'll let the module script pick this up or set a global
             window.AUTO_JOIN_ROOM = embedRoom;
-            document.getElementById('myClassId').textContent = embedRoom.toUpperCase();
+            // Show connected badge instead of ID input
+            document.getElementById('connectedRoomId').textContent = embedRoom.toUpperCase();
+            document.getElementById('connectedBadge').style.display = 'flex';
+            document.getElementById('myIdGroup').style.display = 'none';
+            document.getElementById('authInputGroup').style.display = 'none';
         }
     }
+})();
 </script>
 
+<!-- STANDARD JS -->
 <script>
     /* 1. INSTANT ID GENERATION */
-    // ... (Generate ID only if not in embed mode logic above? No, keep standard)
+    function generateId() {
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
     if (!window.AUTO_JOIN_ROOM) {
-        function generateId() {
-            return Math.random().toString(36).substring(2, 8).toUpperCase();
-        }
         const localId = generateId();
         document.getElementById('myClassId').textContent = localId;
     }
-    
-    /* ... (Rest of existing JS) ... */
-</script>
 
-<div class="app-container" id="appContainer">
-  
-  <div class="header">
-    <div class="header-top">
-      <div>
-        <div style="display:flex; align-items:center;">
-            <h1>Success Class Translator</h1>
-            <span id="roleBadge" class="role-badge role-host">HOST</span>
-        </div>
-        <p>Supabase Powered • Real-time</p>
-      </div>
-    </div>
-
-    <!-- Auth / Room Bar -->
-    <div class="auth-bar" style="margin-top:15px; display:flex; justify-content:space-between; align-items:center;">
-        <!-- My ID Group (Source) -->
-        <div id="myIdGroup" style="display:flex; align-items:center; gap:8px;">
-            <span style="opacity:0.7; font-size:12px;">CLASS ID:</span>
-            <span id="myClassId" style="font-family:monospace; font-weight:bold; font-size:16px;">LOADING...</span>
-        </div>
-
-        <!-- Auth Input Group (Receiver) -->
-        <div id="authInputGroup" style="display:none; gap:8px; align-items:center;">
-            <input type="text" id="joinInput" placeholder="ENTER ID" style="padding:6px; border-radius:4px; border:1px solid #444; background:#222; color:#fff; text-transform:uppercase; width:100px;">
-            <button id="joinBtn" style="padding:6px 12px; border-radius:4px; background:var(--accent-blue); color:#fff; border:none; cursor:pointer;">JOIN</button>
-            <!-- Connected Badge -->
-            <div id="recvConnectedGroup" class="hidden" style="display:none; align-items:center; gap:6px; background:rgba(16,185,129,0.1); padding:4px 8px; border:1px solid rgba(16,185,129,0.3); border-radius:4px;">
-                <span class="dot active" style="background:#10b981; width:8px; height:8px; border-radius:50%; display:inline-block;"></span>
-                <span style="color:#10b981; font-weight:700; font-size:11px;">CONNECTED: <span id="connectedClassId"></span></span>
-            </div>
-        </div>
-    </div>
-
-    <!-- TABS -->
-    <div class="tabs" style="display:flex; gap:10px; margin-top:15px; border-bottom:1px solid #333; padding-bottom:10px;">
-        <button id="btn-source" class="tab-btn active" style="background:transparent; border:none; color:#fff; cursor:pointer; font-weight:bold; opacity:1;">BROADCAST</button>
-        <button id="btn-receiver" class="tab-btn" style="background:transparent; border:none; color:#fff; cursor:pointer; font-weight:bold; opacity:0.5;">RECEIVER</button>
-    </div>
-
-    <!-- SOURCE TAB CONTENT -->
-    <div id="tab-source" class="tab-content active" style="margin-top:15px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-            <div>
-                <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Microphone</label>
-                <select id="micSelect" title="Select Microphone" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;"></select>
-            </div>
-            <div>
-                <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Language</label>
-                <select id="srcLang" title="Select Source Language" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
-                    <option value="en-US">English (US)</option>
-                    <option value="es-ES">Spanish</option>
-                    <option value="fr-FR">French</option>
-                    <option value="de-DE">German</option>
-                    <option value="it-IT">Italian</option>
-                    <option value="pt-BR">Portuguese</option>
-                    <option value="zh-CN">Chinese (Mandarin)</option>
-                    <option value="ja-JP">Japanese</option>
-                    <option value="ko-KR">Korean</option>
-                    <option value="ru-RU">Russian</option>
-                </select>
-            </div>
-        </div>
-        <div style="border:1px solid #333; border-radius:8px; padding:10px; background:#111; margin-bottom:15px;">
-            <canvas id="sourceViz" width="300" height="60" style="width:100%; height:60px;"></canvas>
-        </div>
-        <button id="broadcastBtn" style="width:100%; padding:15px; background:var(--accent-orange); color:#fff; border:none; border-radius:8px; font-weight:bold; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;">
-            <span id="floorDot" class="dot" style="background:#fff; width:10px; height:10px; border-radius:50%; display:inline-block; opacity:0.5;"></span>
-            <span id="floorText">START BROADCAST</span>
-        </button>
-    </div>
-
-    <!-- RECEIVER TAB CONTENT -->
-    <div id="tab-receiver" class="tab-content" style="display:none; margin-top:15px;">
-        <div style="display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:15px;">
-             <div>
-                <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Translate To</label>
-                <select id="tgtLang" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
-                    <option value="es-ES">Spanish</option>
-                    <option value="en-US">English (US)</option>
-                    <option value="fr-FR">French</option>
-                    <option value="de-DE">German</option>
-                    <option value="it-IT">Italian</option>
-                    <option value="pt-BR">Portuguese</option>
-                    <option value="zh-CN">Chinese (Mandarin)</option>
-                    <option value="ja-JP">Japanese</option>
-                    <option value="ko-KR">Korean</option>
-                    <option value="ru-RU">Russian</option>
-                </select>
-            </div>
-             <div>
-                <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Audio Output</label>
-                <select id="speakerSelect" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;"></select>
-            </div>
-        </div>
-
-        <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <div style="flex:1;">
-                <label style="font-size:12px; opacity:0.7;">Speed: <span id="speedVal">1.0x</span></label>
-                <input type="range" id="speedRange" min="0.5" max="2.0" step="0.1" value="1.0" style="width:100%;">
-            </div>
-            <div style="flex:1;">
-                <label style="font-size:12px; opacity:0.7;">Volume: <span id="volVal">1.0x</span></label>
-                <input type="range" id="volRange" min="0.0" max="1.0" step="0.1" value="1.0" style="width:100%;">
-            </div>
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <button id="testTTSBtn" style="padding:6px 12px; background:#333; border:1px solid #555; border-radius:4px; color:#fff; cursor:pointer;">Test Audio</button>
-             <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                <input type="checkbox" id="recvToggle" checked> 
-                <span style="font-size:14px;">Enable Audio</span>
-            </label>
-        </div>
-
-        <div style="border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:10px; background:rgba(16,185,129,0.05); margin-bottom:15px;">
-            <canvas id="recvViz" width="300" height="60" style="width:100%; height:60px;"></canvas>
-        </div>
-        
-        <div style="display:flex; align-items:center; gap:8px;">
-            <span id="recvDot" class="dot" style="background:#666; width:8px; height:8px; border-radius:50%; display:inline-block;"></span>
-            <span id="recvText" style="font-size:12px; opacity:0.7;">Receiver Idle</span>
-        </div>
-        <audio id="tts" style="display:none;"></audio>
-    </div>
-
-    <!-- Shared/Overlay UI -->
-    <div id="historyBox" class="history-box" style="margin-top:20px; border-top:1px solid #333; padding-top:15px; max-height:200px; overflow-y:auto;">
-        <div class="empty-msg" style="text-align:center; opacity:0.5; font-style:italic;">No history yet...</div>
-    </div>
-
-    <div id="liveCaptionBar" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); padding:8px 16px; border-radius:20px; color:#fff; font-size:14px; pointer-events:none; display:none;"></div>
-    <div id="toast" style="position:fixed; top:20px; right:20px; background:#333; color:#fff; padding:10px 20px; border-radius:4px; transform:translateY(-100px); transition:transform 0.3s;">Notice</div>
-
-    <!-- Auth Modal -->
-    <div id="authModal" class="modal-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:999;">
-        <div class="modal" style="background:#111; padding:30px; border-radius:12px; width:90%; max-width:400px; border:1px solid #333;">
-            <h2 style="margin-top:0; color:#fff;">Authentication</h2>
-            <div class="modal-tabs" style="display:flex; gap:20px; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:10px;">
-                <div id="tabLogin" class="tab active" style="cursor:pointer; font-weight:bold; color:#f59e0b;">Login</div>
-                <div id="tabSignup" class="tab" style="cursor:pointer; color:#666;">Sign Up</div>
-            </div>
-            <input type="email" id="emailInput" placeholder="Email Address" style="width:100%; padding:10px; margin-bottom:10px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
-            <input type="password" id="passwordInput" placeholder="Password" style="width:100%; padding:10px; margin-bottom:20px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
-            <button id="authBtn" style="width:100%; padding:12px; background:#f59e0b; color:#000; font-weight:bold; border:none; border-radius:4px; cursor:pointer;">Authenticate</button>
-            <div id="authError" style="color:red; margin-top:10px; font-size:12px;"></div>
-        </div>
-    </div>
-
-  </div> <!-- Close app-container -->
-
-<script>
     /* 2. TAB SWITCHING LOGIC (Shows/Hides ID inputs) */
     const btnSource = document.getElementById('btn-source');
     const btnReceiver = document.getElementById('btn-receiver');
@@ -503,8 +512,6 @@
     const tabReceiver = document.getElementById('tab-receiver');
     const authInputGroup = document.getElementById('authInputGroup');
     const myIdGroup = document.getElementById('myIdGroup');
-    const roleBadge = document.getElementById('roleBadge');
-    const appContainer = document.getElementById('appContainer');
 
     function switchTab(target) {
         if(target === 'source') {
@@ -513,38 +520,36 @@
             tabSource.classList.add('active');
             tabReceiver.classList.remove('active');
             
-            // Show My Class ID (Source)
-            authInputGroup.style.display = 'none';
-            myIdGroup.style.display = 'flex';
-
-            // Role State: HOST
-            roleBadge.textContent = "HOST";
-            roleBadge.className = "role-badge role-host";
-            appContainer.style.boxShadow = "0 0 40px rgba(245, 158, 11, 0.1)"; // Orange Glow
-            
+            // Show My Class ID (Source) - unless in embed mode with connected badge
+            if (!window.AUTO_JOIN_ROOM) {
+                authInputGroup.style.display = 'none';
+                myIdGroup.style.display = 'flex';
+            }
         } else {
             btnSource.classList.remove('active');
             btnReceiver.classList.add('active');
             tabSource.classList.remove('active');
             tabReceiver.classList.add('active');
             
-            // Show Input ID (Receiver)
-            authInputGroup.style.display = 'flex';
-            myIdGroup.style.display = 'none';
-
-            // Role State: PARTICIPANT
-            roleBadge.textContent = "PARTICIPANT";
-            roleBadge.className = "role-badge role-part";
-            appContainer.style.boxShadow = "0 0 40px rgba(16, 185, 129, 0.1)"; // Green Glow
+            // Show Input ID (Receiver) - unless in embed mode with connected badge
+            if (!window.AUTO_JOIN_ROOM) {
+                authInputGroup.style.display = 'flex';
+                myIdGroup.style.display = 'none';
+            }
         }
     }
+    // Make switchTab globally available
+    window.switchTab = switchTab;
 
     btnSource.addEventListener('click', () => switchTab('source'));
     btnReceiver.addEventListener('click', () => switchTab('receiver'));
 
-
-    // Init state (Source)
-    switchTab('source');
+    // Init state (Source by default, Receiver if embed mode)
+    if (window.AUTO_JOIN_ROOM) {
+        switchTab('receiver');
+    } else {
+        switchTab('source');
+    }
 
     /* 3. UI REFERENCES */
     const ui = {
@@ -566,14 +571,8 @@
       joinBtn: document.getElementById("joinBtn"),
       copyIdBtn: document.getElementById("myIdGroup"),
       toast: document.getElementById("toast"),
-      modal: document.getElementById("authModal"),
-      // auth references
-      authEmail: document.getElementById("emailInput"),
-      authPass: document.getElementById("passwordInput"),
-      authBtn: document.getElementById("authBtn"),
-      authError: document.getElementById("authError"),
-      tabLogin: document.getElementById("tabLogin"),
-      tabSignup: document.getElementById("tabSignup")
+      modal: document.getElementById("welcomeModal"),
+      getStartedBtn: document.getElementById("getStartedBtn")
     };
 
     /* 4. HELPER FUNCTIONS */
@@ -616,19 +615,6 @@
             switchTab('receiver');
         }
     });
-
-    // --- AUTH UI LOGIC ---
-    let authMode = 'login';
-    function setAuthMode(m) {
-        authMode = m;
-        ui.tabLogin.classList.toggle('active', m === 'login');
-        ui.tabSignup.classList.toggle('active', m === 'signup');
-        ui.tabSignup.style.color = m === 'signup' ? '#f59e0b' : '#666';
-        ui.authBtn.textContent = m === 'login' ? 'Authenticate' : 'Create & Access';
-    }
-    ui.tabLogin.onclick = () => setAuthMode('login');
-    ui.tabSignup.onclick = () => setAuthMode('signup');
-
 </script>
 
 <!-- SUPABASE MODULE -->
@@ -642,82 +628,39 @@ let currentChannel = null;
 try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    // Check Session on Load
+    // Check for existing session
     supabase.auth.getSession().then(({ data }) => {
         if (data.session) {
-            document.getElementById('authModal').classList.add('hidden');
-            // If already logged in, and not embedding, init normal room
+            document.getElementById('welcomeModal').classList.add('hidden');
+            // If not in embed mode, init room with generated ID
             if (!window.AUTO_JOIN_ROOM) {
-                initRoom(document.getElementById('myClassId').textContent);
+                initRoom(document.getElementById('myClassId').textContent); 
             }
         }
     });
 
     // Embed Mode Auto-Join
     if (window.AUTO_JOIN_ROOM) {
-         // Auto-signin anonymously if needed, or just join channel if public
-         supabase.auth.getSession().then(async ({ data }) => {
-             if (!data.session) {
-                 await supabase.auth.signInAnonymously();
-             }
-             initRoom(window.AUTO_JOIN_ROOM);
-             
-             // Switch to Receiver tab for embedded mode (sidebar acts as participant)
-             if (typeof switchTab === 'function') {
-                 switchTab('receiver');
-             } else {
-                 // Fallback if switchTab not in scope
-                 const btnRecv = document.getElementById('btn-receiver');
-                 if (btnRecv) btnRecv.click();
-             }
-             
-             // Show connected badge
-             const recvConnectedGroup = document.getElementById('recvConnectedGroup');
-             const connectedClassId = document.getElementById('connectedClassId');
-             const authInputGroup = document.getElementById('authInputGroup');
-             if (recvConnectedGroup && connectedClassId) {
-                 connectedClassId.textContent = window.AUTO_JOIN_ROOM.toUpperCase();
-                 recvConnectedGroup.style.display = 'flex';
-                 recvConnectedGroup.classList.remove('hidden');
-                 if (authInputGroup) {
-                     // Hide join input, show connected badge
-                     authInputGroup.querySelector('#joinInput')?.style.setProperty('display', 'none');
-                     authInputGroup.querySelector('#joinBtn')?.style.setProperty('display', 'none');
-                 }
-             }
-         });
+        supabase.auth.getSession().then(async ({ data }) => {
+            if (!data.session) {
+                await supabase.auth.signInAnonymously();
+            }
+            initRoom(window.AUTO_JOIN_ROOM);
+        });
     }
-
 } catch (e) { console.error("Supabase Init Failed", e); }
 
-document.getElementById('authBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('authBtn');
-    const errBox = document.getElementById('authError');
-    const email = document.getElementById('emailInput').value;
-    const password = document.getElementById('passwordInput').value;
-
-    btn.textContent = "Processing...";
-    btn.disabled = true;
-    errBox.textContent = "";
-
+document.getElementById('getStartedBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('getStartedBtn');
+    btn.textContent = "Creating Account...";
     try {
-        let authRes;
-        if (typeof authMode !== 'undefined' && authMode === 'signup') {
-            authRes = await supabase.auth.signUp({ email, password });
-        } else {
-            authRes = await supabase.auth.signInWithPassword({ email, password });
-        }
-
-        if (authRes.error) throw authRes.error;
-
-        document.getElementById('authModal').classList.add('hidden');
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) throw error;
+        document.getElementById('welcomeModal').classList.add('hidden');
         initRoom(document.getElementById('myClassId').textContent);
-
     } catch (err) {
         console.error("Auth Error", err);
-        errBox.textContent = err.message || "Authentication failed.";
         btn.textContent = "Try Again";
-        btn.disabled = false;
     }
 });
 
@@ -737,6 +680,8 @@ function joinRoom(classId) {
             window.enqueueTTS(data.translated_text, data.target_lang);
         }
     }).subscribe();
+    
+    console.log("[Supabase] Joined room:", classId);
 }
 
 window.joinSupabaseRoom = joinRoom;
@@ -765,26 +710,16 @@ async function populateDevices() {
     try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
         const devices = await navigator.mediaDevices.enumerateDevices();
-        
-        ui.micSelect.innerHTML = '<option value="default" selected>Default Microphone (Auto)</option>';
+        ui.micSelect.innerHTML = '';
         ui.speakerSelect.innerHTML = '<option value="default">Default Speaker</option>';
-        
         devices.forEach(d => {
             const opt = document.createElement('option');
             opt.value = d.deviceId;
             opt.text = d.label || `${d.kind} ${d.deviceId.slice(0,4)}`;
-            if (d.kind === 'audioinput' && d.deviceId !== 'default') ui.micSelect.appendChild(opt);
-            if (d.kind === 'audiooutput' && d.deviceId !== 'default') ui.speakerSelect.appendChild(opt);
+            if (d.kind === 'audioinput') ui.micSelect.appendChild(opt);
+            if (d.kind === 'audiooutput') ui.speakerSelect.appendChild(opt);
         });
-        
-        // Ensure default is selected
-        ui.micSelect.value = "default";
-        
-    } catch(e) { 
-        console.error("Device Enumeration Error", e);
-        // Don't alert here to avoid spamming on load, just log.
-        ui.micSelect.innerHTML = '<option value="default">Default Mic (Access Denied)</option>';
-    }
+    } catch(e) { console.error("Permission denied", e); }
 }
 
 ui.speakerSelect.addEventListener('change', async () => {
@@ -868,78 +803,30 @@ window.enqueueTTS = function(text, lang) {
     processTTS();
 }
 
-// TEST BUTTON LOGIC
-document.getElementById('testTTSBtn').addEventListener('click', () => {
-    console.log("Testing TTS...");
-    window.enqueueTTS("This is a test of the audio system.", "en-US");
-});
-
 async function processTTS() {
     if (ttsBusy || !ttsQueue.length) return;
     ttsBusy = true;
     
     ui.recvText.textContent = "Speaking...";
     ui.recvDot.className = "dot receiving";
-    
-    // Resume AudioContext if needed (user interaction check)
-    if (recvCtx && recvCtx.state === 'suspended') {
-        try { await recvCtx.resume(); } catch(e) { console.warn("AudioContext resume failed", e); }
-    }
+    if (recvCtx && recvCtx.state === 'suspended') recvCtx.resume();
 
     const { text, lang } = ttsQueue.shift();
-    // Cartesia expects 'en', 'es', 'fr', etc.
-    const isoLang = lang ? lang.split('-')[0] : 'en';
-
-    console.log(`[TTS] Requesting: "${text.substring(0, 20)}..." in ${isoLang}`);
-
     try {
         const res = await fetch(CARTESIA_CFG.endpoint, {
             method: "POST",
-            headers: { 
-                "Content-Type": "application/json", 
-                "X-API-Key": CARTESIA_KEY, 
-                "Cartesia-Version": "2024-06-10" 
-            },
+            headers: { "Content-Type": "application/json", "X-API-Key": CARTESIA_KEY, "Cartesia-Version": CARTESIA_CFG.version },
             body: JSON.stringify({
-                model_id: "sonic-multilingual-2023-09-28", // More stable for general use
-                transcript: text,
-                language: isoLang,
-                voice: { mode: "id", id: "a0e99841-438c-4a64-b67c-3fedd69cf9a1" }, // "Tim" - reliable male voice
-                output_format: { container: "wav", encoding: "pcm_f32le", sample_rate: 44100 }
+                model_id: CARTESIA_CFG.model_id, transcript: text,
+                voice: { mode: "id", id: "9c7e6604-52c6-424a-9f9f-2c4ad89f3bb9" },
+                output_format: CARTESIA_CFG.output_primary, generation_config: CARTESIA_CFG.generation_config
             })
         });
-
-        if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(`TTS API Error ${res.status}: ${errText}`);
-        }
-
         const blob = await res.blob();
-        console.log("[TTS] Blob received:", blob.size);
-        
-        const url = URL.createObjectURL(blob);
-        ttsAudio.src = url;
-        
-        try {
-            await ttsAudio.play();
-        } catch(playErr) {
-            console.error("Audio Playback Failed (Autoplay blocked?)", playErr);
-            ui.toast.textContent = "Tap 'Test Audio' to enable";
-            ui.toast.classList.add("show");
-        }
-
-        await new Promise(r => { 
-            ttsAudio.onended = () => { URL.revokeObjectURL(url); r(); }; 
-            // Fallback timeout
-            setTimeout(r, (text.length * 100) + 5000); 
-        });
-
-    } catch(e) { 
-        console.error("TTS Process Error", e);
-        ui.toast.textContent = "TTS Err: " + e.message.substring(0, 15);
-        ui.toast.classList.add("show");
-        setTimeout(() => ui.toast.classList.remove("show"), 3000);
-    }
+        ttsAudio.src = URL.createObjectURL(blob);
+        await ttsAudio.play();
+        await new Promise(r => { ttsAudio.onended = r; setTimeout(r, 10000); });
+    } catch(e) { console.error(e); }
     
     ui.recvText.textContent = "Receiver Idle";
     ui.recvDot.className = "dot active";
@@ -947,134 +834,64 @@ async function processTTS() {
     processTTS();
 }
 
-// --- DEEPGRAM CONFIGURATION ---
-const DEEPGRAM_KEY = "52c4137114e2f86597c78326be7b512daae7f266";
-let dgSocket = null;
-let mediaRecorder = null;
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
 let listening = false;
 
-// We'll use a circular buffer/queue for audio chunks? 
-// No, MediaRecorder directly slices chunks.
-
 async function startBroadcasting() {
+    if (!SpeechRecognition) return alert("WebSpeech API not supported");
     if (listening) return stopBroadcasting();
-    
-    // 1. Get Mic Stream
-    let stream;
+
     try {
         const deviceId = ui.micSelect.value;
         const constraints = { audio: deviceId === 'default' ? true : { deviceId: { exact: deviceId } } };
-        
-        try {
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-        } catch(innerErr) {
-            console.warn("Selected mic failed, fallback to default...", innerErr);
-            if(deviceId !== 'default') {
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                ui.toast.textContent = "Switched to Default Mic";
-                ui.toast.classList.add("show");
-                setTimeout(() => ui.toast.classList.remove("show"), 3000);
-            } else throw innerErr;
-        }
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         initSourceViz(stream);
-    } catch(e) {
-        console.error("Mic Access Error", e);
-        return alert(`Microphone Error: ${e.name}\n${e.message}\nCheck permissions.`);
-    }
+    } catch(e) { return alert("Mic Error"); }
 
-    listening = true;
-    ui.floorText.textContent = "Connecting...";
-    ui.floorDot.className = "dot receiving"; // yellow while connecting
-    ui.broadcastBtn.textContent = "Connecting...";
-    ui.broadcastBtn.className = "btn btn-outline";
+    recognizer = new SpeechRecognition();
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
+    recognizer.lang = ui.srcLang.value;
 
-    // 2. Open Deepgram WebSocket
-    // Using nova-3 and smart_formatting
-    const dgUrl = `wss://api.deepgram.com/v1/listen?smart_format=true&model=nova-3&interim_results=true&language=${ui.srcLang.value || 'en-US'}`;
-    dgSocket = new WebSocket(dgUrl, ['token', DEEPGRAM_KEY]);
-
-    dgSocket.onopen = () => {
+    recognizer.onstart = () => {
+        listening = true;
         ui.floorText.textContent = "On Air";
         ui.floorDot.className = "dot active";
         ui.broadcastBtn.textContent = "Stop Broadcasting";
         ui.broadcastBtn.className = "btn btn-red";
         ui.liveCaptionBar.textContent = "Listening...";
-        
-        // 3. Start Recording & Streaming
-        startStreamingAudio(stream);
     };
-
-    dgSocket.onmessage = async (msg) => {
-        const data = JSON.parse(msg.data);
-        if (data.channel && data.channel.alternatives && data.channel.alternatives[0]) {
-            const alt = data.channel.alternatives[0];
-            const transcript = alt.transcript;
-            
-            if (transcript && data.is_final) {
-                // Final Result: Validate & Translate
-                const txt = transcript.trim();
+    recognizer.onend = () => { if (listening) recognizer.start(); else stopBroadcasting(); };
+    recognizer.onresult = async (e) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+            const res = e.results[i];
+            if (res.isFinal) {
+                const txt = res[0].transcript.trim();
                 if (txt) {
-                    const tl = ui.tgtLang.value.split('-')[0]; // Simple language code from locale
-                    // Use Google Translate (Free Tier / Hack)
-                    // In production, use a real backend proxy!
+                    const tl = ui.tgtLang.value.split('-')[0];
                     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${tl}&dt=t&q=${encodeURIComponent(txt)}`;
-                    try {
-                        const r = await fetch(url);
-                        const d = await r.json();
-                        const trans = d[0].map(x => x[0]).join("");
-                        
-                        if(window.broadcastTranslation) {
-                            window.broadcastTranslation(txt, trans, "auto", tl);
-                        }
-                    } catch(err) { console.error("Translation Error", err); }
+                    const r = await fetch(url);
+                    const d = await r.json();
+                    const trans = d[0].map(x=>x[0]).join("");
+                    if(window.broadcastTranslation) window.broadcastTranslation(txt, trans, "auto", tl);
                 }
-            } else {
-                // Interim Result
-                ui.liveCaptionBar.textContent = transcript || "Listening...";
-            }
+            } else interim += res[0].transcript;
         }
+        ui.liveCaptionBar.textContent = interim || (listening ? "Listening..." : "");
     };
-
-    dgSocket.onerror = (e) => {
-        console.error("Deepgram WebSocket Error", e);
-    };
-
-    dgSocket.onclose = () => {
-        if(listening) stopBroadcasting(); // Unexpected close
-    };
-}
-
-function startStreamingAudio(stream) {
-    if (!MediaRecorder.isTypeSupported('audio/webm')) {
-        return alert("Browser not supported (Audio/WebM)");
-    }
-    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-    mediaRecorder.addEventListener('dataavailable', event => {
-        if (event.data.size > 0 && dgSocket && dgSocket.readyState === 1) {
-            dgSocket.send(event.data);
-        }
-    });
-    mediaRecorder.start(250); // Send chunk every 250ms
+    recognizer.start();
 }
 
 function stopBroadcasting() {
     listening = false;
-    
-    // Stop Recorder
-    if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-    mediaRecorder = null;
-
-    // Close Socket
-    if(dgSocket) dgSocket.close();
-    dgSocket = null;
-
-    // UI Reset
+    if (recognizer) recognizer.stop();
     ui.floorText.textContent = "Mic Off";
     ui.floorDot.className = "dot";
     ui.broadcastBtn.textContent = "Start Broadcasting";
     ui.broadcastBtn.className = "btn btn-green";
     ui.liveCaptionBar.textContent = "";
-
     if (inputCtx) inputCtx.close();
 }
 
@@ -1082,563 +899,97 @@ ui.broadcastBtn.addEventListener('click', startBroadcasting);
 
 const LANGUAGES = [
   { code: 'auto', name: 'Auto Detect', flag: '✨' },
-
-  // --- English World ---
   { code: 'en-US', name: 'English (United States)', flag: '🇺🇸' },
   { code: 'en-GB', name: 'English (United Kingdom)', flag: '🇬🇧' },
-  { code: 'en-CA', name: 'English (Canada)', flag: '🇨🇦' },
-  { code: 'en-AU', name: 'English (Australia)', flag: '🇦🇺' },
-  { code: 'en-NZ', name: 'English (New Zealand)', flag: '🇳🇿' },
-  { code: 'en-IE', name: 'English (Ireland)', flag: '🇮🇪' },
-  { code: 'en-ZA', name: 'English (South Africa)', flag: '🇿🇦' },
-  { code: 'en-IN', name: 'English (India)', flag: '🇮🇳' },
-  { code: 'en-PH', name: 'English (Philippines)', flag: '🇵🇭' },
-  { code: 'en-SG', name: 'English (Singapore)', flag: '🇸🇬' },
-  { code: 'en-MY', name: 'English (Malaysia)', flag: '🇲🇾' },
-  { code: 'en-HK', name: 'English (Hong Kong)', flag: '🇭🇰' },
-  { code: 'en-KE', name: 'English (Kenya)', flag: '🇰🇪' },
-  { code: 'en-GH', name: 'English (Ghana)', flag: '🇬🇭' },
-  { code: 'en-NG', name: 'English (Nigeria)', flag: '🇳🇬' },
-  { code: 'en-PK', name: 'English (Pakistan)', flag: '🇵🇰' },
-
-  // --- Spanish World ---
   { code: 'es-ES', name: 'Spanish (Spain)', flag: '🇪🇸' },
   { code: 'es-MX', name: 'Spanish (Mexico)', flag: '🇲🇽' },
-  { code: 'es-US', name: 'Spanish (United States)', flag: '🇺🇸' },
-  { code: 'es-AR', name: 'Spanish (Argentina)', flag: '🇦🇷' },
-  { code: 'es-BO', name: 'Spanish (Bolivia)', flag: '🇧🇴' },
-  { code: 'es-CL', name: 'Spanish (Chile)', flag: '🇨🇱' },
-  { code: 'es-CO', name: 'Spanish (Colombia)', flag: '🇨🇴' },
-  { code: 'es-CR', name: 'Spanish (Costa Rica)', flag: '🇨🇷' },
-  { code: 'es-CU', name: 'Spanish (Cuba)', flag: '🇨🇺' },
-  { code: 'es-DO', name: 'Spanish (Dominican Republic)', flag: '🇩🇴' },
-  { code: 'es-EC', name: 'Spanish (Ecuador)', flag: '🇪🇨' },
-  { code: 'es-SV', name: 'Spanish (El Salvador)', flag: '🇸🇻' },
-  { code: 'es-GT', name: 'Spanish (Guatemala)', flag: '🇬🇹' },
-  { code: 'es-HN', name: 'Spanish (Honduras)', flag: '🇭🇳' },
-  { code: 'es-NI', name: 'Spanish (Nicaragua)', flag: '🇳🇮' },
-  { code: 'es-PA', name: 'Spanish (Panama)', flag: '🇵🇦' },
-  { code: 'es-PY', name: 'Spanish (Paraguay)', flag: '🇵🇾' },
-  { code: 'es-PE', name: 'Spanish (Peru)', flag: '🇵🇪' },
-  { code: 'es-PR', name: 'Spanish (Puerto Rico)', flag: '🇵🇷' },
-  { code: 'es-UY', name: 'Spanish (Uruguay)', flag: '🇺🇾' },
-  { code: 'es-VE', name: 'Spanish (Venezuela)', flag: '🇻🇪' },
-
-  // --- Portuguese World ---
-  { code: 'pt-PT', name: 'Portuguese (Portugal)', flag: '🇵🇹' },
-  { code: 'pt-BR', name: 'Portuguese (Brazil)', flag: '🇧🇷' },
-  { code: 'pt-AO', name: 'Portuguese (Angola)', flag: '🇦🇴' },
-  { code: 'pt-MZ', name: 'Portuguese (Mozambique)', flag: '🇲🇿' },
-
-  // --- French World ---
   { code: 'fr-FR', name: 'French (France)', flag: '🇫🇷' },
   { code: 'fr-CA', name: 'French (Canada)', flag: '🇨🇦' },
-  { code: 'fr-BE', name: 'French (Belgium)', flag: '🇧🇪' },
-  { code: 'fr-CH', name: 'French (Switzerland)', flag: '🇨🇭' },
-  { code: 'fr-LU', name: 'French (Luxembourg)', flag: '🇱🇺' },
-  { code: 'fr-SN', name: 'French (Senegal)', flag: '🇸🇳' },
-  { code: 'fr-CI', name: "French (Côte d'Ivoire)", flag: '🇨🇮' },
-
-  // --- Germanic (Core) ---
-  { code: 'de-DE', name: 'German (Germany)', flag: '🇩🇪' },
-  { code: 'de-AT', name: 'German (Austria)', flag: '🇦🇹' },
-  { code: 'de-CH', name: 'German (Switzerland)', flag: '🇨🇭' },
+  { code: 'de-DE', name: 'German', flag: '🇩🇪' },
   { code: 'nl-NL', name: 'Dutch (Netherlands)', flag: '🇳🇱' },
-  { code: 'nl-BE', name: 'Dutch (Belgium / Flemish Standard)', flag: '🇧🇪' },
-
-  // --- Belgium Regional Languages / Dialects ---
-  { code: 'vls-BE', name: 'West Flemish (Belgium)', flag: '🇧🇪' },
-  { code: 'zea-BE', name: 'Zeelandic (Belgium)', flag: '🇧🇪' },
-  { code: 'lim-BE', name: 'Limburgish (Belgium)', flag: '🇧🇪' },
-  { code: 'wa-BE', name: 'Walloon (Belgium)', flag: '🇧🇪' },
-  { code: 'de-BE', name: 'German (Belgium)', flag: '🇧🇪' },
-  { code: 'pcd-BE', name: 'Picard (Belgium)', flag: '🇧🇪' },
-
-  // --- African Regional Languages ---
-  { code: 'fr-CM', name: 'French (Cameroon)', flag: '🇨🇲' },
-  { code: 'en-CM', name: 'English (Cameroon)', flag: '🇨🇲' },
-  { code: 'byv-CM', name: 'Medumba (Cameroon)', flag: '🇨🇲' },
-  { code: 'wo-SN', name: 'Wolof (Senegal)', flag: '🇸🇳' },
-
-  // --- Philippines Regional Languages ---
-  { code: 'fil-PH', name: 'Filipino (Philippines)', flag: '🇵🇭' },
-  { code: 'tl-PH', name: 'Tagalog (Philippines)', flag: '🇵🇭' },
-  { code: 'ceb-PH', name: 'Cebuano (Philippines)', flag: '🇵🇭' },
-  { code: 'ilo-PH', name: 'Ilocano (Philippines)', flag: '🇵🇭' },
-  { code: 'hil-PH', name: 'Hiligaynon (Philippines)', flag: '🇵🇭' },
-  { code: 'war-PH', name: 'Waray (Philippines)', flag: '🇵🇭' },
-
-  // --- Italy & Neighbors ---
-  { code: 'it-IT', name: 'Italian (Italy)', flag: '🇮🇹' },
-  { code: 'it-CH', name: 'Italian (Switzerland)', flag: '🇨🇭' },
-  { code: 'rm-CH', name: 'Romansh (Switzerland)', flag: '🇨🇭' },
-
-  // --- Nordics ---
-  { code: 'sv-SE', name: 'Swedish', flag: '🇸🇪' },
-  { code: 'da-DK', name: 'Danish', flag: '🇩🇰' },
-  { code: 'nb-NO', name: 'Norwegian Bokmål', flag: '🇳🇴' },
-  { code: 'nn-NO', name: 'Norwegian Nynorsk', flag: '🇳🇴' },
-  { code: 'fi-FI', name: 'Finnish', flag: '🇫🇮' },
-  { code: 'is-IS', name: 'Icelandic', flag: '🇮🇸' },
-  { code: 'fo-FO', name: 'Faroese', flag: '🇫🇴' },
-
-  // --- Western & Central Europe ---
-  { code: 'ga-IE', name: 'Irish', flag: '🇮🇪' },
-  { code: 'gd-GB', name: 'Scottish Gaelic', flag: '🏴' },
-  { code: 'cy-GB', name: 'Welsh', flag: '🏴' },
-  { code: 'br-FR', name: 'Breton', flag: '🇫🇷' },
-  { code: 'eu-ES', name: 'Basque', flag: '🇪🇸' },
-  { code: 'ca-ES', name: 'Catalan', flag: '🇪🇸' },
-  { code: 'gl-ES', name: 'Galician', flag: '🇪🇸' },
-  { code: 'oc-FR', name: 'Occitan', flag: '🇫🇷' },
-  { code: 'lb-LU', name: 'Luxembourgish', flag: '🇱🇺' },
-  { code: 'mt-MT', name: 'Maltese', flag: '🇲🇹' },
-
-  // --- Balkans & Eastern Europe ---
+  { code: 'nl-BE', name: 'Dutch (Belgium)', flag: '🇧🇪' },
+  { code: 'it-IT', name: 'Italian', flag: '🇮🇹' },
+  { code: 'pt-PT', name: 'Portuguese', flag: '🇵🇹' },
+  { code: 'pt-BR', name: 'Portuguese (Brazil)', flag: '🇧🇷' },
+  { code: 'ru-RU', name: 'Russian', flag: '🇷🇺' },
+  { code: 'ja-JP', name: 'Japanese', flag: '🇯🇵' },
+  { code: 'zh-CN', name: 'Chinese (Simplified)', flag: '🇨🇳' },
+  { code: 'ko-KR', name: 'Korean', flag: '🇰🇷' },
+  { code: 'ar-SA', name: 'Arabic', flag: '🇸🇦' },
+  { code: 'hi-IN', name: 'Hindi', flag: '🇮🇳' },
+  { code: 'tr-TR', name: 'Turkish', flag: '🇹🇷' },
   { code: 'pl-PL', name: 'Polish', flag: '🇵🇱' },
+  { code: 'uk-UA', name: 'Ukrainian', flag: '🇺🇦' },
+  { code: 'tl-PH', name: 'Tagalog', flag: '🇵🇭' },
+  { code: 'vi-VN', name: 'Vietnamese', flag: '🇻🇳' },
+  { code: 'th-TH', name: 'Thai', flag: '🇹🇭' },
+  { code: 'id-ID', name: 'Indonesian', flag: '🇮🇩' },
+  { code: 'ms-MY', name: 'Malay', flag: '🇲🇾' },
+  { code: 'sv-SE', name: 'Swedish', flag: '🇸🇪' },
+  { code: 'no-NO', name: 'Norwegian', flag: '🇳🇴' },
+  { code: 'da-DK', name: 'Danish', flag: '🇩🇰' },
+  { code: 'fi-FI', name: 'Finnish', flag: '🇫🇮' },
+  { code: 'el-GR', name: 'Greek', flag: '🇬🇷' },
+  { code: 'he-IL', name: 'Hebrew', flag: '🇮🇱' },
   { code: 'cs-CZ', name: 'Czech', flag: '🇨🇿' },
-  { code: 'sk-SK', name: 'Slovak', flag: '🇸🇰' },
   { code: 'hu-HU', name: 'Hungarian', flag: '🇭🇺' },
   { code: 'ro-RO', name: 'Romanian', flag: '🇷🇴' },
+  { code: 'sk-SK', name: 'Slovak', flag: '🇸🇰' },
   { code: 'bg-BG', name: 'Bulgarian', flag: '🇧🇬' },
-  { code: 'sl-SI', name: 'Slovenian', flag: '🇸🇮' },
+  { code: 'ca-ES', name: 'Catalan', flag: '🇪🇸' },
+  { code: 'sr-RS', name: 'Serbian', flag: '🇷🇸' },
   { code: 'hr-HR', name: 'Croatian', flag: '🇭🇷' },
-  { code: 'sr-RS', name: 'Serbian (Serbia)', flag: '🇷🇸' },
-  { code: 'bs-BA', name: 'Bosnian', flag: '🇧🇦' },
-  { code: 'mk-MK', name: 'Macedonian', flag: '🇲🇰' },
-  { code: 'sq-AL', name: 'Albanian', flag: '🇦🇱' },
-  { code: 'el-GR', name: 'Greek', flag: '🇬🇷' },
-  { code: 'ru-RU', name: 'Russian', flag: '🇷🇺' },
-  { code: 'uk-UA', name: 'Ukrainian', flag: '🇺🇦' },
-  { code: 'be-BY', name: 'Belarusian', flag: '🇧🇾' },
+  { code: 'sl-SI', name: 'Slovenian', flag: '🇸🇮' },
   { code: 'et-EE', name: 'Estonian', flag: '🇪🇪' },
   { code: 'lv-LV', name: 'Latvian', flag: '🇱🇻' },
   { code: 'lt-LT', name: 'Lithuanian', flag: '🇱🇹' },
-
-  // --- Caucasus & Central Asia ---
-  { code: 'ka-GE', name: 'Georgian', flag: '🇬🇪' },
-  { code: 'hy-AM', name: 'Armenian', flag: '🇦🇲' },
-  { code: 'az-AZ', name: 'Azerbaijani', flag: '🇦🇿' },
-  { code: 'kk-KZ', name: 'Kazakh', flag: '🇰🇿' },
-  { code: 'ky-KG', name: 'Kyrgyz', flag: '🇰🇬' },
-  { code: 'uz-UZ', name: 'Uzbek', flag: '🇺🇿' },
-  { code: 'tk-TM', name: 'Turkmen', flag: '🇹🇲' },
-  { code: 'tg-TJ', name: 'Tajik', flag: '🇹🇯' },
-
-  // --- Middle East (Semitic/Iranic/Turkic) ---
-  { code: 'tr-TR', name: 'Turkish', flag: '🇹🇷' },
-  { code: 'he-IL', name: 'Hebrew', flag: '🇮🇱' },
-  { code: 'fa-IR', name: 'Persian (Iran)', flag: '🇮🇷' },
-  { code: 'fa-AF', name: 'Dari (Afghanistan)', flag: '🇦🇫' },
-  { code: 'ps-AF', name: 'Pashto (Afghanistan)', flag: '🇦🇫' },
-  { code: 'ku-TR', name: 'Kurdish (Kurmanji)', flag: '🇹🇷' },
-  { code: 'ckb-IQ', name: 'Kurdish (Sorani)', flag: '🇮🇶' },
-
-  // Arabic regional variants (common)
-  { code: 'ar-SA', name: 'Arabic (Saudi Arabia)', flag: '🇸🇦' },
-  { code: 'ar-AE', name: 'Arabic (UAE)', flag: '🇦🇪' },
-  { code: 'ar-QA', name: 'Arabic (Qatar)', flag: '🇶🇦' },
-  { code: 'ar-KW', name: 'Arabic (Kuwait)', flag: '🇰🇼' },
-  { code: 'ar-BH', name: 'Arabic (Bahrain)', flag: '🇧🇭' },
-  { code: 'ar-OM', name: 'Arabic (Oman)', flag: '🇴🇲' },
-  { code: 'ar-YE', name: 'Arabic (Yemen)', flag: '🇾🇪' },
-  { code: 'ar-IQ', name: 'Arabic (Iraq)', flag: '🇮🇶' },
-  { code: 'ar-JO', name: 'Arabic (Jordan)', flag: '🇯🇴' },
-  { code: 'ar-LB', name: 'Arabic (Lebanon)', flag: '🇱🇧' },
-  { code: 'ar-SY', name: 'Arabic (Syria)', flag: '🇸🇾' },
-  { code: 'ar-EG', name: 'Arabic (Egypt)', flag: '🇪🇬' },
-  { code: 'ar-SD', name: 'Arabic (Sudan)', flag: '🇸🇩' },
-  { code: 'ar-DZ', name: 'Arabic (Algeria)', flag: '🇩🇿' },
-  { code: 'ar-TN', name: 'Arabic (Tunisia)', flag: '🇹🇳' },
-  { code: 'ar-MA', name: 'Arabic (Morocco)', flag: '🇲🇦' },
-
-  // --- South Asia ---
-  { code: 'hi-IN', name: 'Hindi', flag: '🇮🇳' },
-  { code: 'ur-PK', name: 'Urdu (Pakistan)', flag: '🇵🇰' },
-  { code: 'ur-IN', name: 'Urdu (India)', flag: '🇮🇳' },
-  { code: 'bn-BD', name: 'Bengali (Bangladesh)', flag: '🇧🇩' },
-  { code: 'bn-IN', name: 'Bengali (India)', flag: '🇮🇳' },
-  { code: 'pa-IN', name: 'Punjabi (India)', flag: '🇮🇳' },
-  { code: 'pa-PK', name: 'Punjabi (Pakistan)', flag: '🇵🇰' },
-  { code: 'gu-IN', name: 'Gujarati', flag: '🇮🇳' },
-  { code: 'mr-IN', name: 'Marathi', flag: '🇮🇳' },
-  { code: 'ta-IN', name: 'Tamil (India)', flag: '🇮🇳' },
-  { code: 'ta-LK', name: 'Tamil (Sri Lanka)', flag: '🇱🇰' },
+  { code: 'fa-IR', name: 'Persian', flag: '🇮🇷' },
+  { code: 'ur-PK', name: 'Urdu', flag: '🇵🇰' },
+  { code: 'bn-IN', name: 'Bengali', flag: '🇮🇳' },
+  { code: 'ta-IN', name: 'Tamil', flag: '🇮🇳' },
   { code: 'te-IN', name: 'Telugu', flag: '🇮🇳' },
-  { code: 'kn-IN', name: 'Kannada', flag: '🇮🇳' },
-  { code: 'ml-IN', name: 'Malayalam', flag: '🇮🇳' },
-  { code: 'or-IN', name: 'Odia', flag: '🇮🇳' },
-  { code: 'as-IN', name: 'Assamese', flag: '🇮🇳' },
-  { code: 'ne-NP', name: 'Nepali', flag: '🇳🇵' },
-  { code: 'si-LK', name: 'Sinhala', flag: '🇱🇰' },
-  { code: 'my-MM', name: 'Burmese (Myanmar)', flag: '🇲🇲' },
-
-  // --- East Asia (Sino-Tibetan, Japonic, Koreanic) ---
-  { code: 'zh-Hans', name: 'Chinese (Simplified)', flag: '🇨🇳' },
-  { code: 'zh-Hant', name: 'Chinese (Traditional)', flag: '🇹🇼' },
-  { code: 'zh-CN', name: 'Chinese (Simplified, China)', flag: '🇨🇳' },
-  { code: 'zh-SG', name: 'Chinese (Simplified, Singapore)', flag: '🇸🇬' },
-  { code: 'zh-TW', name: 'Chinese (Traditional, Taiwan)', flag: '🇹🇼' },
-  { code: 'zh-HK', name: 'Chinese (Traditional, Hong Kong)', flag: '🇭🇰' },
-  { code: 'yue-HK', name: 'Cantonese (Hong Kong)', flag: '🇭🇰' },
-  { code: 'zh-MO', name: 'Chinese (Traditional, Macau)', flag: '🇲🇴' },
-  { code: 'ja-JP', name: 'Japanese', flag: '🇯🇵' },
-  { code: 'ko-KR', name: 'Korean', flag: '🇰🇷' },
-
-  // --- Southeast Asia ---
-  { code: 'id-ID', name: 'Indonesian', flag: '🇮🇩' },
-  { code: 'jv-ID', name: 'Javanese', flag: '🇮🇩' },
-  { code: 'su-ID', name: 'Sundanese', flag: '🇮🇩' },
-  { code: 'ms-MY', name: 'Malay (Malaysia)', flag: '🇲🇾' },
-  { code: 'ms-SG', name: 'Malay (Singapore)', flag: '🇸🇬' },
-  { code: 'ms-BN', name: 'Malay (Brunei)', flag: '🇧🇳' },
-  { code: 'vi-VN', name: 'Vietnamese', flag: '🇻🇳' },
-  { code: 'th-TH', name: 'Thai', flag: '🇹🇭' },
-  { code: 'km-KH', name: 'Khmer (Cambodia)', flag: '🇰🇭' },
-  { code: 'lo-LA', name: 'Lao', flag: '🇱🇦' },
-
-  // --- Philippines (Major Regional Languages) ---
-  { code: 'bcl-PH', name: 'Central Bikol', flag: '🇵🇭' },
-  { code: 'pam-PH', name: 'Kapampangan', flag: '🇵🇭' },
-  { code: 'pag-PH', name: 'Pangasinan', flag: '🇵🇭' },
-  { code: 'mnd-PH', name: 'Maguindanao', flag: '🇵🇭' },
-  { code: 'mrw-PH', name: 'Maranao', flag: '🇵🇭' },
-  { code: 'tsg-PH', name: 'Tausug', flag: '🇵🇭' },
-  { code: 'cbk-PH', name: 'Chavacano', flag: '🇵🇭' },
-  { code: 'bto-PH', name: 'Rinconada Bikol', flag: '🇵🇭' },
-  { code: 'krj-PH', name: 'Kinaray-a', flag: '🇵🇭' },
-  { code: 'akl-PH', name: 'Aklanon', flag: '🇵🇭' },
-  { code: 'msb-PH', name: 'Masbateño', flag: '🇵🇭' },
-  { code: 'sur-PH', name: 'Surigaonon', flag: '🇵🇭' },
-  { code: 'tl-mix', name: 'Taglish (Tagalog-English Mix)', flag: '🇵🇭' },
-
-  // --- Africa (Pan) ---
-  { code: 'sw-KE', name: 'Swahili (Kenya)', flag: '🇰🇪' },
-  { code: 'sw-TZ', name: 'Swahili (Tanzania)', flag: '🇹🇿' },
-  { code: 'am-ET', name: 'Amharic', flag: '🇪🇹' },
-  { code: 'ti-ER', name: 'Tigrinya (Eritrea)', flag: '🇪🇷' },
-  { code: 'ti-ET', name: 'Tigrinya (Ethiopia)', flag: '🇪🇹' },
-  { code: 'ha-NG', name: 'Hausa (Nigeria)', flag: '🇳🇬' },
-  { code: 'yo-NG', name: 'Yoruba (Nigeria)', flag: '🇳🇬' },
-  { code: 'ig-NG', name: 'Igbo (Nigeria)', flag: '🇳🇬' },
-  { code: 'zu-ZA', name: 'Zulu (South Africa)', flag: '🇿🇦' },
-  { code: 'xh-ZA', name: 'Xhosa (South Africa)', flag: '🇿🇦' },
-  { code: 'st-LS', name: 'Sesotho', flag: '🇱🇸' },
-  { code: 'sn-ZW', name: 'Shona', flag: '🇿🇼' },
-  { code: 'so-SO', name: 'Somali', flag: '🇸🇴' },
-  { code: 'rw-RW', name: 'Kinyarwanda', flag: '🇷🇼' },
-  { code: 'rn-BI', name: 'Kirundi', flag: '🇧🇮' },
-  { code: 'mg-MG', name: 'Malagasy', flag: '🇲🇬' },
-  { code: 'ny-MW', name: 'Chichewa', flag: '🇲🇼' },
-  { code: 'ts-ZA', name: 'Xitsonga', flag: '🇿🇦' },
-  { code: 'tn-ZA', name: 'Setswana', flag: '🇿🇦' },
-  { code: 'ff-SN', name: 'Fula (Pulaar / Fulfulde)', flag: '🇸🇳' },
-
-  // --- Cameroon (Expanded) ---
-  { code: 'wes-CM', name: 'Cameroon Pidgin', flag: '🇨🇲' },
-  { code: 'ewo-CM', name: 'Ewondo', flag: '🇨🇲' },
-  { code: 'dua-CM', name: 'Duala', flag: '🇨🇲' },
-  { code: 'bas-CM', name: 'Basaa', flag: '🇨🇲' },
-  { code: 'bum-CM', name: 'Bulu', flag: '🇨🇲' },
-  { code: 'bkm-CM', name: 'Kom (Cameroon)', flag: '🇨🇲' },
-  { code: 'fub-CM', name: 'Fulfulde (Cameroon)', flag: '🇨🇲' },
-
-  // --- Americas (Non-English) ---
-  { code: 'fr-HT', name: 'Haitian French', flag: '🇭🇹' },
-  { code: 'ht-HT', name: 'Haitian Creole', flag: '🇭🇹' },
-  { code: 'qu-PE', name: 'Quechua (Peru)', flag: '🇵🇪' },
-  { code: 'gn-PY', name: 'Guarani (Paraguay)', flag: '🇵🇾' },
-  { code: 'ay-BO', name: 'Aymara (Bolivia)', flag: '🇧🇴' },
-
-  // --- East Africa / Horn ---
-  { code: 'om-ET', name: 'Oromo (Ethiopia)', flag: '🇪🇹' },
-
-  // --- Oceania ---
-  { code: 'mi-NZ', name: 'Māori (New Zealand)', flag: '🇳🇿' },
-  { code: 'sm-WS', name: 'Samoan', flag: '🇼🇸' },
-  { code: 'to-TO', name: 'Tongan', flag: '🇹🇴' },
-  { code: 'fj-FJ', name: 'Fijian', flag: '🇫🇯' },
-  { code: 'tpi-PG', name: 'Tok Pisin', flag: '🇵🇬' },
-
-  // --- Indigenous Americas (JW.org subset) ---
-  { code: 'yua-MX', name: 'Maya (Yucatec)', flag: '🇲🇽' },
-  { code: 'nah-MX', name: 'Nahuatl (Central)', flag: '🇲🇽' },
-  { code: 'quc-GT', name: "K'iche'", flag: '🇬🇹' },
-  { code: 'mam-GT', name: 'Mam', flag: '🇬🇹' },
-  { code: 'kek-GT', name: "Q'eqchi'", flag: '🇬🇹' },
-  { code: 'cak-GT', name: 'Kaqchikel', flag: '🇬🇹' },
-  { code: 'zap-MX', name: 'Zapotec (Isthmus)', flag: '🇲🇽' },
-  { code: 'mix-MX', name: 'Mixtec', flag: '🇲🇽' },
-  { code: 'miq-NI', name: 'Miskito', flag: '🇳🇮' },
-  { code: 'pap-CW', name: 'Papiamento', flag: '🇨🇼' },
-
-  // --- African Languages (Expanded) ---
-  { code: 'tw-GH', name: 'Twi', flag: '🇬🇭' },
-  { code: 'ee-GH', name: 'Ewe', flag: '🇬🇭' },
-  { code: 'ln-CD', name: 'Lingala', flag: '🇨🇩' },
-  { code: 'lg-UG', name: 'Luganda', flag: '🇺🇬' },
-  { code: 'ki-KE', name: 'Kikuyu', flag: '🇰🇪' },
-  { code: 'bem-ZM', name: 'Bemba', flag: '🇿🇲' },
-
-  // --- Asia / Other ---
-  { code: 'hmn-CN', name: 'Hmong', flag: '🇨🇳' },
-  { code: 'rom', name: 'Romani', flag: '🌍' },
-  { code: 'szl-PL', name: 'Silesian', flag: '🇵🇱' },
-
-  // --- Constructed / Other ---
-  { code: 'eo', name: 'Esperanto', flag: '🌐' },
-  { code: 'la', name: 'Latin', flag: '🌐' },
-
-  // --- JW.org Extended Languages ---
-  { code: 'en', name: 'English', flag: '🌍' },
-  { code: 'ar', name: 'العربية', flag: '🌍' },
-  { code: 'el', name: 'Ελληνική', flag: '🌍' },
-  { code: 'ja', name: '日本語', flag: '🌍' },
-  { code: 'ko', name: '한국어', flag: '🌍' },
-  { code: 'ru', name: 'русский', flag: '🌍' },
-  { code: 'sn', name: 'Shona', flag: '🌍' },
-  { code: 'sr-cyrl', name: 'српски (ћирилица)', flag: '🌍' },
-  { code: 'sv', name: 'Svenska', flag: '🌍' },
-  { code: 'ty', name: 'Tahiti', flag: '🌍' },
-  { code: 'bci', name: 'Wawle', flag: '🌍' },
-  { code: 'no', name: 'Norsk', flag: '🌍' },
-  { code: 'da', name: 'Dansk', flag: '🌍' },
-  { code: 'nl', name: 'Nederlands', flag: '🌍' },
-  { code: 'is', name: 'íslenska', flag: '🌍' },
-  { code: 'tl', name: 'Tagalog', flag: '🌍' },
-  { code: 'ne', name: 'नेपाली', flag: '🌍' },
-  { code: 'zpa', name: 'diitza', flag: '🌍' },
-  { code: 'hu', name: 'magyar', flag: '🌍' },
-  { code: 'fo', name: 'Føroyskt', flag: '🌍' },
-  { code: 'sl', name: 'slovenščina', flag: '🌍' },
-  { code: 'sg', name: 'Sango', flag: '🌍' },
-  { code: 'hy', name: 'Հայերեն', flag: '🌍' },
-  { code: 'kj', name: 'Oshikwanyama', flag: '🌍' },
-  { code: 'guw', name: 'Gungbe', flag: '🌍' },
-  { code: 'fi', name: 'suomi', flag: '🌍' },
-  { code: 'sm', name: 'Faa-Samoa', flag: '🌍' },
-  { code: 'xh', name: 'IsiXhosa', flag: '🌍' },
-  { code: 'ceb', name: 'Cebuano', flag: '🌍' },
-  { code: 'mg', name: 'Malagasy', flag: '🌍' },
-  { code: 'efi', name: 'Efịk', flag: '🌍' },
-  { code: 'sw', name: 'Kiswahili', flag: '🌍' },
-  { code: 'ny', name: 'Chichewa', flag: '🌍' },
-  { code: 'ilo', name: 'Iloko', flag: '🌍' },
-  { code: 'ka', name: 'ქართული', flag: '🌍' },
-  { code: 'ml', name: 'മലയാളം', flag: '🌍' },
-  { code: 'ig', name: 'Igbo', flag: '🌍' },
-  { code: 'gaa', name: 'Ga', flag: '🌍' },
-  { code: 'ti', name: 'ትግርኛ', flag: '🌍' },
-  { code: 'hil', name: 'Hiligaynon', flag: '🌍' },
-  { code: 'loz', name: 'Silozi', flag: '🌍' },
-  { code: 'tum', name: 'Chitumbuka', flag: '🌍' },
-  { code: 'uz-cyrl', name: 'ўзбекча', flag: '🌍' },
-  { code: 'run', name: 'Ikirundi', flag: '🌍' },
-  { code: 'ts', name: 'Xitsonga', flag: '🌍' },
-  { code: 'nso', name: 'Sepedi', flag: '🌍' },
-  { code: 'ky', name: 'кыргыз', flag: '🌍' },
-  { code: 'uk', name: 'українська', flag: '🌍' },
-  { code: 'de', name: 'Deutsch', flag: '🌍' },
-  { code: 'az', name: 'Azərbaycan', flag: '🌍' },
-  { code: 'vi', name: 'Việt', flag: '🌍' },
-  { code: 'cmn-hant', name: '中文繁體（國語）', flag: '🌍' },
-  { code: 'az-cyrl', name: 'Aзәрбајҹан (кирил әлифбасы)', flag: '🌍' },
-  { code: 'cs', name: 'čeština', flag: '🌍' },
-  { code: 'zu', name: 'IsiZulu', flag: '🌍' },
-  { code: 'it', name: 'Italiano', flag: '🌍' },
-  { code: 'id', name: 'Indonesia', flag: '🌍' },
-  { code: 'st', name: 'Sesotho (Lesotho)', flag: '🌍' },
-  { code: 'ta', name: 'தமிழ்', flag: '🌍' },
-  { code: 'si', name: 'සිංහල', flag: '🌍' },
-  { code: 'ln', name: 'Lingala', flag: '🌍' },
-  { code: 'bg', name: 'български', flag: '🌍' },
-  { code: 'tr', name: 'Türkçe', flag: '🌍' },
-  { code: 'th', name: 'ไทย', flag: '🌍' },
-  { code: 'mt', name: 'Malti', flag: '🌍' },
-  { code: 'hr', name: 'hrvatski', flag: '🌍' },
-  { code: 'fr', name: 'Français', flag: '🌍' },
-  { code: 'yo', name: 'Yorùbá', flag: '🌍' },
-  { code: 'lv', name: 'latviešu', flag: '🌍' },
-  { code: 'bem', name: 'Cibemba', flag: '🌍' },
-  { code: 'mk', name: 'македонски', flag: '🌍' },
-  { code: 'sk', name: 'slovenčina', flag: '🌍' },
-  { code: 'ss', name: 'SiSwati', flag: '🌍' },
-  { code: 'guc', name: 'Wayuunaiki', flag: '🌍' },
-  { code: 've', name: 'Luvenda', flag: '🌍' },
-  { code: 'pdt', name: 'Plautdietsch', flag: '🌍' },
-  { code: 'kl', name: 'Kalaallisut', flag: '🌍' },
-  { code: 'quy', name: 'Quechua (Ayacucho)', flag: '🌍' },
-  { code: 'sr-latn', name: 'srpski (latinica)', flag: '🌍' },
-  { code: 'he', name: 'עברית', flag: '🌍' },
-  { code: 'srn', name: 'Sranantongo', flag: '🌍' },
-  { code: 'quz', name: 'quechua (Cusco)', flag: '🌍' },
-  { code: 'mr', name: 'मराठी', flag: '🌍' },
-  { code: 'bn', name: 'বাংলা', flag: '🌍' },
-  { code: 'af', name: 'Afrikaans', flag: '🌍' },
-  { code: 'hi', name: 'हिंदी', flag: '🌍' },
-  { code: 'pap', name: 'Papiamentu (Kòrsou)', flag: '🌍' },
-  { code: 'nr', name: 'IsiNdebele', flag: '🌍' },
-  { code: 'te', name: 'తెలుగు', flag: '🌍' },
-  { code: 'qu', name: 'Quechua (Bolivia)', flag: '🌍' },
-  { code: 'fa', name: 'فارسی', flag: '🌍' },
-  { code: 'que', name: 'Quechua (Ancash)', flag: '🌍' },
-  { code: 'ug-cyrl', name: 'Уйғур (кирилл йезиғи)', flag: '🌍' },
-  { code: 'ncj', name: 'náhuatl del norte de Puebla', flag: '🌍' },
-  { code: 'ach', name: 'Acholi', flag: '🌍' },
-  { code: 'lo', name: 'ລາວ', flag: '🌍' },
-  { code: 'ay', name: 'Aymara', flag: '🌍' },
-  { code: 'fj', name: 'vakaViti', flag: '🌍' },
-  { code: 'uz-latn', name: 'o‘zbekcha (lotincha)', flag: '🌍' },
-  { code: 'vmw', name: 'Emakhuwa', flag: '🌍' },
-  { code: 'seh', name: 'Cisena', flag: '🌍' },
-  { code: 'tpi', name: 'Tok Pisin', flag: '🌍' },
-  { code: 'mh', name: 'Kajin M̦ajel̦', flag: '🌍' },
-  { code: 'ee', name: 'Eʋegbe', flag: '🌍' },
-  { code: 'lgg', name: 'Lugbara', flag: '🌍' },
-  { code: 'wo', name: 'Wolof', flag: '🌍' },
-  { code: 'mn', name: 'монгол', flag: '🌍' },
-  { code: 'mfe', name: 'Kreol Morisien', flag: '🌍' },
-  { code: 'ada', name: 'Dangme', flag: '🌍' },
-  { code: 'pau', name: 'Palauan', flag: '🌍' },
-  { code: 'ht', name: 'Kreyòl ayisyen', flag: '🌍' },
-  { code: 'nzi', name: 'Nzema', flag: '🌍' },
-  { code: 'kwy', name: 'Kikongo', flag: '🌍' },
-  { code: 'gug', name: 'guarani', flag: '🌍' },
-  { code: 'sid', name: 'Sidaamu Afoo', flag: '🌍' },
-  { code: 'tg', name: 'тоҷикӣ', flag: '🌍' },
-  { code: 'om', name: 'Afaan Oromoo', flag: '🌍' },
-  { code: 'lg', name: 'Luganda', flag: '🌍' },
-  { code: 'kos', name: 'Kosraean', flag: '🌍' },
-  { code: 'zai', name: 'diidxazá', flag: '🌍' },
-  { code: 'pap-x-paa', name: 'Papiamento (Aruba)', flag: '🌍' },
-  { code: 'mos', name: 'Moore', flag: '🌍' },
-  { code: 'kk', name: 'қазақ', flag: '🌍' },
-  { code: 'kab', name: 'Taqbaylit', flag: '🌍' },
-  { code: 'ngu', name: 'náhuatl de guerrero', flag: '🌍' },
-  { code: 'ho', name: 'Hiri Motu', flag: '🌍' },
-  { code: 'xmv', name: 'Tankarana', flag: '🌍' },
-  { code: 'to', name: 'Faka-Tonga', flag: '🌍' },
-  { code: 'umb', name: 'Umbundu', flag: '🌍' },
-  { code: 'quc', name: 'quiché', flag: '🌍' },
-  { code: 'tk-cyrl', name: 'түркмен (кириллица)', flag: '🌍' },
-  { code: 'hmn', name: 'Hmoob Dawb', flag: '🌍' },
-  { code: 'nyn', name: 'Runyankore', flag: '🌍' },
-  { code: 'bi', name: 'Bislama', flag: '🌍' },
-  { code: 'cat', name: 'català', flag: '🌍' },
-  { code: 'kmb', name: 'Kimbundu', flag: '🌍' },
-  { code: 'gil', name: 'Kiribati', flag: '🌍' },
-  { code: 'ngl', name: 'Elomwe', flag: '🌍' },
-  { code: 'kmr-cyrl', name: 'К′öрди Кöрманщи (Кирили)', flag: '🌍' },
-  { code: 'ki', name: 'Gĩkũyũ', flag: '🌍' },
-  { code: 'luo', name: 'Dholuo', flag: '🌍' },
-  { code: 'crs', name: 'Kreol Seselwa', flag: '🌍' },
-  { code: 'kam', name: 'Kikamba', flag: '🌍' },
-  { code: 'wls', name: 'Faka\'uvea', flag: '🌍' },
-  { code: 'tiv', name: 'Tiv', flag: '🌍' },
-  { code: 'ha', name: 'Hausa', flag: '🌍' },
-  { code: 'os', name: 'ирон', flag: '🌍' },
-  { code: 'tdt', name: 'Tetun Dili', flag: '🌍' },
-  { code: 'yua', name: 'maaya', flag: '🌍' },
-  { code: 'pon', name: 'Lokaiahn Pohnpei', flag: '🌍' },
-  { code: 'hyw', name: 'Արեւմտահայերէն', flag: '🌍' },
-  { code: 'bm', name: 'Bamanankan', flag: '🌍' },
-  { code: 'tt', name: 'татар', flag: '🌍' },
-  { code: 'teo', name: 'Ateso', flag: '🌍' },
-  { code: 'lu', name: 'Kiluba', flag: '🌍' },
-  { code: 'war', name: 'Waray-Waray', flag: '🌍' },
-  { code: 'pag', name: 'Pangasinan', flag: '🌍' },
-  { code: 'bcl', name: 'Bicol', flag: '🌍' },
-  { code: 'lua', name: 'Tshiluba', flag: '🌍' },
-  { code: 'rw', name: 'Ikinyarwanda', flag: '🌍' },
-  { code: 'kg', name: 'Kikongo (Rép. dém. du congo)', flag: '🌍' },
-  { code: 'maz', name: 'jñatrjo', flag: '🌍' },
-  { code: 'nv', name: 'Diné Bizaad', flag: '🌍' },
-  { code: 'nch', name: 'náhuatl de la huasteca', flag: '🌍' },
-  { code: 'tog', name: 'Chitonga (Malawi)', flag: '🌍' },
-  { code: 'swc', name: 'Kiswahili (Congo)', flag: '🌍' },
-  { code: 'cy', name: 'Cymraeg', flag: '🌍' },
-  { code: 'am', name: 'አማርኛ', flag: '🌍' },
-  { code: 'km', name: 'ខ្មែរ', flag: '🌍' },
-  { code: 'kn', name: 'ಕನ್ನಡ', flag: '🌍' },
-  { code: 'my', name: 'မြန်မာ', flag: '🌍' },
-  { code: 'tn', name: 'Setswana', flag: '🌍' },
-  { code: 'toi', name: 'Chitonga', flag: '🌍' },
-  { code: 'rtm', name: 'Rotuạm ta', flag: '🌍' },
-  { code: 'yap', name: 'Waab', flag: '🌍' },
-  { code: 'tyv', name: 'тыва', flag: '🌍' },
-  { code: 'hz', name: 'Otjiherero', flag: '🌍' },
-  { code: 'as', name: 'অসমীয়া', flag: '🌍' },
-  { code: 'zne', name: 'Zande', flag: '🌍' },
-  { code: 'ttj', name: 'Rutoro', flag: '🌍' },
-  { code: 'tvl', name: 'Tuvalu', flag: '🌍' },
-  { code: 'ng', name: 'Oshindonga', flag: '🌍' },
-  { code: 'cv', name: 'чӑвашла', flag: '🌍' },
-  { code: 'niu', name: 'Faka-Niue', flag: '🌍' },
-  { code: 'chk', name: 'Chuuk', flag: '🌍' },
-  { code: 'bin', name: 'Edo', flag: '🌍' },
-  { code: 'nd', name: 'Ndebele (Zimbabwe)', flag: '🌍' },
-  { code: 'bas', name: 'Basaa (Kamerun)', flag: '🌍' },
-  { code: 'gkn', name: 'Gokana', flag: '🌍' },
-  { code: 'dga', name: 'Dagaare', flag: '🌍' },
-  { code: 'bba', name: 'Baatɔnum', flag: '🌍' },
-  { code: 'ckb', name: 'کوردی سۆرانی', flag: '🌍' },
-  { code: 'wal', name: 'Wolayttattuwa', flag: '🌍' },
-  { code: 'dua', name: 'Douala', flag: '🌍' },
-  { code: 'fon', name: 'Fɔngbe', flag: '🌍' },
-  { code: 'bum', name: 'Bulu', flag: '🌍' },
-  { code: 'nya', name: 'Cinyanja', flag: '🌍' },
-  { code: 'whg', name: 'Jiwaka Yu', flag: '🌍' },
-  { code: 'rmn-x-rm', name: 'romane (Makedonija)', flag: '🌍' },
-  { code: 'lb', name: 'Lëtzebuergesch', flag: '🌍' },
-  { code: 'kck-x-kl', name: 'Kalanga (Botswana)', flag: '🌍' },
-  { code: 'kbd', name: 'адыгэбзэ', flag: '🌍' },
-  { code: 'mni', name: 'মৈতৈলোন্', flag: '🌍' },
-  { code: 'dyu', name: 'Jula', flag: '🌍' },
-  { code: 'os-x-dgr', name: 'дигорон', flag: '🌍' },
-  { code: 'gui', name: 'Guaraní boliviano', flag: '🌍' },
-
-  // --- JW.org Extended Languages (578 additional) ---
-  { code: 'ab', name: 'Abkhazian', flag: '🌍' },
-  { code: 'fub', name: 'Adamawa Fulfulde', flag: '🌍' },
-  { code: 'aa', name: 'Afar', flag: '🌍' },
-  { code: 'agr', name: 'Aguaruna', flag: '🌍' },
-  { code: 'ake', name: 'Akawaio', flag: '🌍' },
-  { code: 'bss', name: 'Akoose', flag: '🌍' },
-  { code: 'alz', name: 'Alur', flag: '🌍' },
-  { code: 'amc', name: 'Amahuaca', flag: '🌍' },
-  { code: 'zpo', name: 'Amatlán Zapotec', flag: '🌍' },
-  { code: 'qva', name: 'Ambo-Pasco Quechua', flag: '🌍' },
-  { code: 'ami', name: 'Amis', flag: '🌍' },
-  { code: 'grc', name: 'Ancient Greek', flag: '🌍' },
-  { code: 'yli', name: 'Angguruk Yali', flag: '🌍' },
-  { code: 'aui', name: 'Anuki', flag: '🌍' },
-  { code: 'ajg', name: 'Aja (Benin)', flag: '🌍' },
-  { code: 'aii', name: 'Assyrian Neo-Aramaic', flag: '🌍' },
-  { code: 'awa', name: 'Awadhi', flag: '🌍' },
-  { code: 'azb', name: 'South Azerbaijani', flag: '🌍' },
-  { code: 'kbr', name: 'Kafa', flag: '🌍' },
-  { code: 'shp', name: 'Shipibo-Conibo', flag: '🌍' },
-  { code: 'ura', name: 'Urarina', flag: '🌍' },
-  { code: 'sah', name: 'Yakut', flag: '🌍' },
-  { code: 'yaa', name: 'Yaminahua', flag: '🌍' },
-  { code: 'dje', name: 'Zarma', flag: '🌍' },
-  { code: 'zyp', name: 'Zhuang', flag: '🌍' },
+  { code: 'mr-IN', name: 'Marathi', flag: '🇮🇳' },
+  { code: 'sw-KE', name: 'Swahili', flag: '🇰🇪' },
+  { code: 'af-ZA', name: 'Afrikaans', flag: '🇿🇦' }
 ];
 
+/* SAVE PREFERENCES EVENT LISTENERS */
+ui.srcLang.addEventListener('change', (e) => {
+    localStorage.setItem('orbit_src_lang', e.target.value);
+    if (recognizer && listening) {
+        recognizer.lang = e.target.value;
+    }
+});
+
+ui.tgtLang.addEventListener('change', (e) => {
+    localStorage.setItem('orbit_tgt_lang', e.target.value);
+});
+
 function init() {
-    // Generate options including flags
     const opts = LANGUAGES.map(l => `<option value="${l.code}">${l.flag ? l.flag + ' ' : ''}${l.name}</option>`).join('');
-    
-    // Populate Source Language
     ui.srcLang.innerHTML = opts;
-    
-    // Populate Target Language (Exclude Auto Detect if desired, but keeping to match request for dynamic selection)
-    // Note: Usually you translate TO a specific language, but we'll leave Auto as an option if the backend supports it or just let user choose.
     ui.tgtLang.innerHTML = opts;
 
-    // Set Defaults
-    ui.srcLang.value = "en-US";
-    ui.tgtLang.value = "nl-BE"; // Default to Dutch BE
+    const savedSrc = localStorage.getItem('orbit_src_lang');
+    const savedTgt = localStorage.getItem('orbit_tgt_lang');
+    const browserLang = navigator.language;
+
+    if (savedSrc) {
+        ui.srcLang.value = savedSrc;
+    } else {
+        ui.srcLang.value = "en-US";
+    }
+
+    if (savedTgt) {
+        ui.tgtLang.value = savedTgt;
+    } else {
+        const exists = LANGUAGES.find(l => l.code === browserLang || l.code.startsWith(browserLang));
+        if (exists) {
+            ui.tgtLang.value = exists.code;
+        } else {
+            ui.tgtLang.value = "nl-BE";
+        }
+    }
     
     populateDevices();
     initRecvViz();
