@@ -2,7 +2,16 @@ import { dbClient as supabase } from './dbClient';
 import { RoomState } from '../types';
 
 export async function getRoomState(meetingId: string): Promise<RoomState> {
-  const { data } = await supabase.from('meetings').select('*').eq('meeting_id', meetingId).single();
+  const { data, error } = await supabase
+    .from('meetings')
+    .select('*')
+    .eq('meeting_id', meetingId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching meeting state:', error);
+    return { hostId: null, activeSpeaker: null, isFloorLocked: false, conversationMode: 'manual', raiseHandQueue: [], lockVersion: 0 };
+  }
 
   if (!data) return { hostId: null, activeSpeaker: null, isFloorLocked: false, conversationMode: 'manual', raiseHandQueue: [], lockVersion: 0 };
 

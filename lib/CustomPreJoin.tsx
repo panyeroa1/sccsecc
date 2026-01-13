@@ -202,7 +202,7 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
       setAudioOutputDevices(audioOutputs);
       setVideoDevices(videoInputs);
 
-      // Set defaults if not already set
+      // Set defaults if not already set or if selection is invalid
       if (!selectedAudioInput && audioInputs.length > 0) {
         setSelectedAudioInput(audioInputs[0].deviceId);
       }
@@ -210,6 +210,8 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
         setSelectedAudioOutput(audioOutputs[0].deviceId);
       }
       if (!selectedVideo && videoInputs.length > 0) {
+        setSelectedVideo(videoInputs[0].deviceId);
+      } else if (selectedVideo && !videoInputs.some(d => d.deviceId === selectedVideo)) {
         setSelectedVideo(videoInputs[0].deviceId);
       }
     } catch (err) {
@@ -248,6 +250,12 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
         }
       }
     } catch (err) {
+      const error = err as Error;
+      if ((error.name === 'OverconstrainedError' || error.name === 'NotFoundError') && selectedVideo) {
+        console.warn('Selected camera unavailable, falling back to default device.');
+        setSelectedVideo('');
+        return;
+      }
       console.error('Error starting video preview:', err);
     }
   }, [videoEnabled, selectedVideo, cameraPermission]);
@@ -264,15 +272,20 @@ export function CustomPreJoin({ roomName, onSubmit, onError, defaults }: CustomP
         .from('rooms')
         .select('id, room_code, name')
         .eq('room_code', roomName)
-        .single();
+        .maybeSingle();
 
       if (existingRoom) {
         setRoomData(existingRoom);
         return existingRoom;
       }
 
+      if (fetchError) {
+        console.error('Error fetching room:', fetchError);
+        return null;
+      }
+
       // Room doesn't exist, create it
-      if (fetchError && fetchError.code === 'PGRST116') {
+      if (!existingRoom) {
         const { data: newRoom, error: createError } = await supabase
           .from('rooms')
           .insert({ room_code: roomName, name: roomName })
