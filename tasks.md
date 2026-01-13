@@ -5752,3 +5752,43 @@ How it was tested:
 - Verified receiving real translations triggers the same pipeline.
 Test result:
 - PASS
+Task ID: T-0078
+Title: Receiver Enhancements (Class ID & Local Translation)
+Status: IN-PROGRESS
+Owner: Miles
+Branch: main
+Created: 2026-01-14 03:25
+
+START LOG
+Timestamp: 2026-01-14 03:25
+Plan:
+- Add UI element for "Connected Class ID" in Receiver tab.
+- Implement `translateText` helper.
+- Update Receiver logic (Supabase `on('broadcast')`) to translate incoming text to the Receiver's selected language.
+- Ensure TTS reads the locally translated text.
+Files:
+- public/success-class.html
+
+WORK CHECKLIST
+- [x] Add "Connected To" badge in HTML.
+- [x] Implement `translateText` function.
+- [x] Update `joinBtn` logic to toggle UI.
+- [x] Update `currentChannel.on` to perform translation.
+
+END LOG
+
+Timestamp: 2026-01-14 03:30
+Summary of what actually changed:
+- Added `recvConnectedGroup` in UI to show the joined Class ID.
+- Implemented `translateText()` using Google Translate wrapper.
+- Updated Supabase `broadcast` handler to ignore Broadcaster's translation and re-translate `source_text` to `ui.tgtLang.value`.
+- This ensures the Receiver hears/reads their *chosen* language, not the Broadcaster's default.
+Files actually modified:
+- public/success-class.html
+How it was tested:
+- Joined a room.
+- Verified Input changed to "CONNECTED TO [ID]".
+- Verified incoming message was translated to the locally selected language (e.g. French) instead of Broadcaster's (e.g. Spanish).
+- Confirmed TTS played the local French translation.
+Test result:
+- PASS
