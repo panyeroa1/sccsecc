@@ -914,12 +914,13 @@ async function startBroadcasting() {
             if (res.isFinal) {
                 const txt = res[0].transcript.trim();
                 if (txt) {
-                    const tl = ui.tgtLang.value.split('-')[0];
+                    const tl = getGoogleTranslateCode(ui.tgtLang.value);
+                    const targetLang = ui.tgtLang.value;
                     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${tl}&dt=t&q=${encodeURIComponent(txt)}`;
                     const r = await fetch(url);
                     const d = await r.json();
                     const trans = d[0].map(x=>x[0]).join("");
-                    if(window.broadcastTranslation) window.broadcastTranslation(txt, trans, "auto", tl);
+                    if(window.broadcastTranslation) window.broadcastTranslation(txt, trans, "auto", targetLang);
                 }
             } else interim += res[0].transcript;
         }
@@ -942,60 +943,72 @@ function stopBroadcasting() {
 ui.broadcastBtn.addEventListener('click', startBroadcasting);
 
 const LANGUAGES = [
-  { code: 'auto', name: 'Auto Detect', flag: '✨' },
-  { code: 'en-US', name: 'English (United States)', flag: '🇺🇸' },
-  { code: 'en-GB', name: 'English (United Kingdom)', flag: '🇬🇧' },
-  { code: 'es-ES', name: 'Spanish (Spain)', flag: '🇪🇸' },
-  { code: 'es-MX', name: 'Spanish (Mexico)', flag: '🇲🇽' },
-  { code: 'fr-FR', name: 'French (France)', flag: '🇫🇷' },
-  { code: 'fr-CA', name: 'French (Canada)', flag: '🇨🇦' },
-  { code: 'de-DE', name: 'German', flag: '🇩🇪' },
-  { code: 'nl-NL', name: 'Dutch (Netherlands)', flag: '🇳🇱' },
-  { code: 'nl-BE', name: 'Dutch (Belgium)', flag: '🇧🇪' },
-  { code: 'it-IT', name: 'Italian', flag: '🇮🇹' },
-  { code: 'pt-PT', name: 'Portuguese', flag: '🇵🇹' },
-  { code: 'pt-BR', name: 'Portuguese (Brazil)', flag: '🇧🇷' },
-  { code: 'ru-RU', name: 'Russian', flag: '🇷🇺' },
-  { code: 'ja-JP', name: 'Japanese', flag: '🇯🇵' },
-  { code: 'zh-CN', name: 'Chinese (Simplified)', flag: '🇨🇳' },
-  { code: 'ko-KR', name: 'Korean', flag: '🇰🇷' },
-  { code: 'ar-SA', name: 'Arabic', flag: '🇸🇦' },
-  { code: 'hi-IN', name: 'Hindi', flag: '🇮🇳' },
-  { code: 'tr-TR', name: 'Turkish', flag: '🇹🇷' },
-  { code: 'pl-PL', name: 'Polish', flag: '🇵🇱' },
-  { code: 'uk-UA', name: 'Ukrainian', flag: '🇺🇦' },
-  { code: 'tl-PH', name: 'Tagalog', flag: '🇵🇭' },
-  { code: 'vi-VN', name: 'Vietnamese', flag: '🇻🇳' },
-  { code: 'th-TH', name: 'Thai', flag: '🇹🇭' },
-  { code: 'id-ID', name: 'Indonesian', flag: '🇮🇩' },
-  { code: 'ms-MY', name: 'Malay', flag: '🇲🇾' },
-  { code: 'sv-SE', name: 'Swedish', flag: '🇸🇪' },
-  { code: 'no-NO', name: 'Norwegian', flag: '🇳🇴' },
-  { code: 'da-DK', name: 'Danish', flag: '🇩🇰' },
-  { code: 'fi-FI', name: 'Finnish', flag: '🇫🇮' },
-  { code: 'el-GR', name: 'Greek', flag: '🇬🇷' },
-  { code: 'he-IL', name: 'Hebrew', flag: '🇮🇱' },
-  { code: 'cs-CZ', name: 'Czech', flag: '🇨🇿' },
-  { code: 'hu-HU', name: 'Hungarian', flag: '🇭🇺' },
-  { code: 'ro-RO', name: 'Romanian', flag: '🇷🇴' },
-  { code: 'sk-SK', name: 'Slovak', flag: '🇸🇰' },
-  { code: 'bg-BG', name: 'Bulgarian', flag: '🇧🇬' },
-  { code: 'ca-ES', name: 'Catalan', flag: '🇪🇸' },
-  { code: 'sr-RS', name: 'Serbian', flag: '🇷🇸' },
-  { code: 'hr-HR', name: 'Croatian', flag: '🇭🇷' },
-  { code: 'sl-SI', name: 'Slovenian', flag: '🇸🇮' },
-  { code: 'et-EE', name: 'Estonian', flag: '🇪🇪' },
-  { code: 'lv-LV', name: 'Latvian', flag: '🇱🇻' },
-  { code: 'lt-LT', name: 'Lithuanian', flag: '🇱🇹' },
-  { code: 'fa-IR', name: 'Persian', flag: '🇮🇷' },
-  { code: 'ur-PK', name: 'Urdu', flag: '🇵🇰' },
-  { code: 'bn-IN', name: 'Bengali', flag: '🇮🇳' },
-  { code: 'ta-IN', name: 'Tamil', flag: '🇮🇳' },
-  { code: 'te-IN', name: 'Telugu', flag: '🇮🇳' },
-  { code: 'mr-IN', name: 'Marathi', flag: '🇮🇳' },
-  { code: 'sw-KE', name: 'Swahili', flag: '🇰🇪' },
-  { code: 'af-ZA', name: 'Afrikaans', flag: '🇿🇦' }
+  { code: 'en-US', gtCode: 'en', name: 'English (US)', flag: '🇺🇸' },
+  { code: 'en-GB', gtCode: 'en', name: 'English (UK)', flag: '🇬🇧' },
+  { code: 'es-ES', gtCode: 'es', name: 'Spanish', flag: '🇪🇸' },
+  { code: 'fr-FR', gtCode: 'fr', name: 'French', flag: '🇫🇷' },
+  { code: 'de-DE', gtCode: 'de', name: 'German', flag: '🇩🇪' },
+  { code: 'nl-NL', gtCode: 'nl', name: 'Dutch', flag: '🇳🇱' },
+  { code: 'it-IT', gtCode: 'it', name: 'Italian', flag: '🇮🇹' },
+  { code: 'pt-BR', gtCode: 'pt', name: 'Portuguese', flag: '🇧🇷' },
+  { code: 'ru-RU', gtCode: 'ru', name: 'Russian', flag: '🇷🇺' },
+  { code: 'ja-JP', gtCode: 'ja', name: 'Japanese', flag: '🇯🇵' },
+  { code: 'zh-CN', gtCode: 'zh-CN', name: 'Chinese (Simplified)', flag: '🇨🇳' },
+  { code: 'zh-TW', gtCode: 'zh-TW', name: 'Chinese (Traditional)', flag: '🇹🇼' },
+  { code: 'ko-KR', gtCode: 'ko', name: 'Korean', flag: '🇰🇷' },
+  { code: 'ar-SA', gtCode: 'ar', name: 'Arabic', flag: '🇸🇦' },
+  { code: 'hi-IN', gtCode: 'hi', name: 'Hindi', flag: '🇮🇳' },
+  { code: 'tr-TR', gtCode: 'tr', name: 'Turkish', flag: '🇹🇷' },
+  { code: 'pl-PL', gtCode: 'pl', name: 'Polish', flag: '🇵🇱' },
+  { code: 'uk-UA', gtCode: 'uk', name: 'Ukrainian', flag: '🇺🇦' },
+  { code: 'fil-PH', gtCode: 'tl', name: 'Filipino/Tagalog', flag: '🇵🇭' },
+  { code: 'vi-VN', gtCode: 'vi', name: 'Vietnamese', flag: '🇻🇳' },
+  { code: 'th-TH', gtCode: 'th', name: 'Thai', flag: '🇹🇭' },
+  { code: 'id-ID', gtCode: 'id', name: 'Indonesian', flag: '🇮🇩' },
+  { code: 'ms-MY', gtCode: 'ms', name: 'Malay', flag: '🇲🇾' },
+  { code: 'sv-SE', gtCode: 'sv', name: 'Swedish', flag: '🇸🇪' },
+  { code: 'nb-NO', gtCode: 'no', name: 'Norwegian', flag: '🇳🇴' },
+  { code: 'da-DK', gtCode: 'da', name: 'Danish', flag: '🇩🇰' },
+  { code: 'fi-FI', gtCode: 'fi', name: 'Finnish', flag: '🇫🇮' },
+  { code: 'el-GR', gtCode: 'el', name: 'Greek', flag: '🇬🇷' },
+  { code: 'he-IL', gtCode: 'iw', name: 'Hebrew', flag: '🇮🇱' },
+  { code: 'cs-CZ', gtCode: 'cs', name: 'Czech', flag: '🇨🇿' },
+  { code: 'hu-HU', gtCode: 'hu', name: 'Hungarian', flag: '🇭🇺' },
+  { code: 'ro-RO', gtCode: 'ro', name: 'Romanian', flag: '🇷🇴' },
+  { code: 'sk-SK', gtCode: 'sk', name: 'Slovak', flag: '🇸🇰' },
+  { code: 'bg-BG', gtCode: 'bg', name: 'Bulgarian', flag: '🇧🇬' },
+  { code: 'ca-ES', gtCode: 'ca', name: 'Catalan', flag: '🏴' },
+  { code: 'sr-RS', gtCode: 'sr', name: 'Serbian', flag: '🇷🇸' },
+  { code: 'hr-HR', gtCode: 'hr', name: 'Croatian', flag: '🇭🇷' },
+  { code: 'sl-SI', gtCode: 'sl', name: 'Slovenian', flag: '🇸🇮' },
+  { code: 'et-EE', gtCode: 'et', name: 'Estonian', flag: '🇪🇪' },
+  { code: 'lv-LV', gtCode: 'lv', name: 'Latvian', flag: '🇱🇻' },
+  { code: 'lt-LT', gtCode: 'lt', name: 'Lithuanian', flag: '🇱🇹' },
+  { code: 'fa-IR', gtCode: 'fa', name: 'Persian', flag: '🇮🇷' },
+  { code: 'ur-PK', gtCode: 'ur', name: 'Urdu', flag: '🇵🇰' },
+  { code: 'bn-IN', gtCode: 'bn', name: 'Bengali', flag: '🇧🇩' },
+  { code: 'ta-IN', gtCode: 'ta', name: 'Tamil', flag: '🇮🇳' },
+  { code: 'te-IN', gtCode: 'te', name: 'Telugu', flag: '🇮🇳' },
+  { code: 'mr-IN', gtCode: 'mr', name: 'Marathi', flag: '🇮🇳' },
+  { code: 'sw-KE', gtCode: 'sw', name: 'Swahili', flag: '🇰🇪' },
+  { code: 'af-ZA', gtCode: 'af', name: 'Afrikaans', flag: '🇿🇦' }
 ];
+
+const languageDisplayNames = typeof Intl !== 'undefined' && Intl.DisplayNames
+    ? new Intl.DisplayNames(['en'], { type: 'language' })
+    : null;
+
+function getLanguageLabel(lang) {
+    const displayName = languageDisplayNames ? languageDisplayNames.of(lang.code) : lang.name;
+    const baseName = displayName || lang.name || lang.code;
+    return `${lang.flag ? lang.flag + ' ' : ''}${baseName}`;
+}
+
+// Helper to get Google Translate code from language selection
+function getGoogleTranslateCode(langCode) {
+    const lang = LANGUAGES.find(l => l.code === langCode);
+    return lang ? lang.gtCode : langCode.split('-')[0];
+}
 
 /* SAVE PREFERENCES EVENT LISTENERS */
 ui.srcLang.addEventListener('change', (e) => {
@@ -1010,7 +1023,7 @@ ui.tgtLang.addEventListener('change', (e) => {
 });
 
 function init() {
-    const opts = LANGUAGES.map(l => `<option value="${l.code}">${l.flag ? l.flag + ' ' : ''}${l.name}</option>`).join('');
+    const opts = LANGUAGES.map(l => `<option value="${l.code}">${getLanguageLabel(l)}</option>`).join('');
     ui.srcLang.innerHTML = opts;
     ui.tgtLang.innerHTML = opts;
 
