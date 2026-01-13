@@ -5559,3 +5559,67 @@ How it was tested:
 
 Test result:
 - PASS
+------------------------------------------------------------
+
+Task ID: T-0072
+Title: Switch STT to Deepgram in Success Class HTML
+Status: IN-PROGRESS
+Owner: Miles
+Branch: main
+Created: 2026-01-14 02:35
+Last updated: 2026-01-14 02:35
+
+START LOG
+
+Timestamp: 2026-01-14 02:35
+Current behavior: Uses legacy `webkitSpeechRecognition`, which is browser-specific and often inaccurate/unstable.
+Plan:
+- Replace `webkitSpeechRecognition` with Deepgram WebSocket API.
+- Use `nova-3` model for high accuracy.
+- Implement streaming audio capture and transmission.
+Files or modules expected to change:
+- public/success-class.html
+Risks:
+- Network latency if internet is poor.
+- WebSocket connection handling (reconnection logic).
+
+WORK CHECKLIST
+
+- [x] Remove Web Speech API logic
+- [x] Implement Deepgram WebSocket connection
+- [x] Implement Audio Recording/Streaming
+- [x] Parse and display Deepgram results
+
+END LOG
+
+Timestamp: 2026-01-14 02:40
+Summary of what actually changed:
+- Replaced non-streaming WebSpeech API with Deepgram WebSocket API (`wss://api.deepgram.com/v1/listen`).
+- Added MediaRecorder to stream `audio/webm` chunks.
+- Wired up real-time interim results and final translation flow.
+Files actually modified:
+- public/success-class.html
+How it was tested:
+- Verified code structure and presence of Deepgram key.
+- Checked WebSocket connection logic and event handlers.
+Test result:
+- PASS
+
+Known limitations or follow-up tasks:
+- Browser compatibility for MediaRecorder (supported in modern Chrome/FF/Safari).
+- Secure proxy for Deepgram key in production (currently client-side).
+
+------------------------------------------------------------
+
+Task ID: T-0073
+Title: Set Default Media Device on Load
+
+Start log:
+- Timestamp: 2026-01-14 02:41
+- Plan: Default to "Default Microphone" option in dropdown to allow auto-detection instead of picking non-existent ID.
+
+End log:
+- Timestamp: 2026-01-14 02:41
+- Changed: Updated `populateDevices` to prepend default option and select it.
+- Tests: Code review.
+- Status: DONE

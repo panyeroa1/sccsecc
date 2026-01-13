@@ -631,15 +631,21 @@ async function populateDevices() {
     try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
         const devices = await navigator.mediaDevices.enumerateDevices();
-        ui.micSelect.innerHTML = '';
+        
+        ui.micSelect.innerHTML = '<option value="default" selected>Default Microphone (Auto)</option>';
         ui.speakerSelect.innerHTML = '<option value="default">Default Speaker</option>';
+        
         devices.forEach(d => {
             const opt = document.createElement('option');
             opt.value = d.deviceId;
             opt.text = d.label || `${d.kind} ${d.deviceId.slice(0,4)}`;
-            if (d.kind === 'audioinput') ui.micSelect.appendChild(opt);
-            if (d.kind === 'audiooutput') ui.speakerSelect.appendChild(opt);
+            if (d.kind === 'audioinput' && d.deviceId !== 'default') ui.micSelect.appendChild(opt);
+            if (d.kind === 'audiooutput' && d.deviceId !== 'default') ui.speakerSelect.appendChild(opt);
         });
+        
+        // Ensure default is selected
+        ui.micSelect.value = "default";
+        
     } catch(e) { 
         console.error("Device Enumeration Error", e);
         // Don't alert here to avoid spamming on load, just log.
@@ -759,81 +765,134 @@ async function processTTS() {
     processTTS();
 }
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognizer = null;
+// --- DEEPGRAM CONFIGURATION ---
+const DEEPGRAM_KEY = "52c4137114e2f86597c78326be7b512daae7f266";
+let dgSocket = null;
+let mediaRecorder = null;
 let listening = false;
 
-async function startBroadcasting() {
-    if (!SpeechRecognition) return alert("WebSpeech API not supported");
-    if (listening) return stopBroadcasting();
+// We'll use a circular buffer/queue for audio chunks? 
+// No, MediaRecorder directly slices chunks.
 
+async function startBroadcasting() {
+    if (listening) return stopBroadcasting();
+    
+    // 1. Get Mic Stream
+    let stream;
     try {
         const deviceId = ui.micSelect.value;
         const constraints = { audio: deviceId === 'default' ? true : { deviceId: { exact: deviceId } } };
         
         try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            initSourceViz(stream);
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch(innerErr) {
-            console.warn("Selected mic failed, trying default...", innerErr);
-            if (deviceId !== 'default') {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                initSourceViz(stream);
+            console.warn("Selected mic failed, fallback to default...", innerErr);
+            if(deviceId !== 'default') {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 ui.toast.textContent = "Switched to Default Mic";
                 ui.toast.classList.add("show");
                 setTimeout(() => ui.toast.classList.remove("show"), 3000);
-            } else {
-                throw innerErr;
-            }
+            } else throw innerErr;
         }
-    } catch(e) { 
+        initSourceViz(stream);
+    } catch(e) {
         console.error("Mic Access Error", e);
-        return alert(`Microphone Error: ${e.name}\n${e.message}\nPlease check browser permissions.`);
+        return alert(`Microphone Error: ${e.name}\n${e.message}\nCheck permissions.`);
     }
 
-    recognizer = new SpeechRecognition();
-    recognizer.continuous = true;
-    recognizer.interimResults = true;
-    recognizer.lang = ui.srcLang.value;
+    listening = true;
+    ui.floorText.textContent = "Connecting...";
+    ui.floorDot.className = "dot receiving"; // yellow while connecting
+    ui.broadcastBtn.textContent = "Connecting...";
+    ui.broadcastBtn.className = "btn btn-outline";
 
-    recognizer.onstart = () => {
-        listening = true;
+    // 2. Open Deepgram WebSocket
+    // Using nova-3 and smart_formatting
+    const dgUrl = `wss://api.deepgram.com/v1/listen?smart_format=true&model=nova-3&interim_results=true&language=${ui.srcLang.value || 'en-US'}`;
+    dgSocket = new WebSocket(dgUrl, ['token', DEEPGRAM_KEY]);
+
+    dgSocket.onopen = () => {
         ui.floorText.textContent = "On Air";
         ui.floorDot.className = "dot active";
         ui.broadcastBtn.textContent = "Stop Broadcasting";
         ui.broadcastBtn.className = "btn btn-red";
         ui.liveCaptionBar.textContent = "Listening...";
+        
+        // 3. Start Recording & Streaming
+        startStreamingAudio(stream);
     };
-    recognizer.onend = () => { if (listening) recognizer.start(); else stopBroadcasting(); };
-    recognizer.onresult = async (e) => {
-        let interim = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-            const res = e.results[i];
-            if (res.isFinal) {
-                const txt = res[0].transcript.trim();
+
+    dgSocket.onmessage = async (msg) => {
+        const data = JSON.parse(msg.data);
+        if (data.channel && data.channel.alternatives && data.channel.alternatives[0]) {
+            const alt = data.channel.alternatives[0];
+            const transcript = alt.transcript;
+            
+            if (transcript && data.is_final) {
+                // Final Result: Validate & Translate
+                const txt = transcript.trim();
                 if (txt) {
-                    const tl = ui.tgtLang.value.split('-')[0];
+                    const tl = ui.tgtLang.value.split('-')[0]; // Simple language code from locale
+                    // Use Google Translate (Free Tier / Hack)
+                    // In production, use a real backend proxy!
                     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${tl}&dt=t&q=${encodeURIComponent(txt)}`;
-                    const r = await fetch(url);
-                    const d = await r.json();
-                    const trans = d[0].map(x=>x[0]).join("");
-                    if(window.broadcastTranslation) window.broadcastTranslation(txt, trans, "auto", tl);
+                    try {
+                        const r = await fetch(url);
+                        const d = await r.json();
+                        const trans = d[0].map(x => x[0]).join("");
+                        
+                        if(window.broadcastTranslation) {
+                            window.broadcastTranslation(txt, trans, "auto", tl);
+                        }
+                    } catch(err) { console.error("Translation Error", err); }
                 }
-            } else interim += res[0].transcript;
+            } else {
+                // Interim Result
+                ui.liveCaptionBar.textContent = transcript || "Listening...";
+            }
         }
-        ui.liveCaptionBar.textContent = interim || (listening ? "Listening..." : "");
     };
-    recognizer.start();
+
+    dgSocket.onerror = (e) => {
+        console.error("Deepgram WebSocket Error", e);
+    };
+
+    dgSocket.onclose = () => {
+        if(listening) stopBroadcasting(); // Unexpected close
+    };
+}
+
+function startStreamingAudio(stream) {
+    if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        return alert("Browser not supported (Audio/WebM)");
+    }
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    mediaRecorder.addEventListener('dataavailable', event => {
+        if (event.data.size > 0 && dgSocket && dgSocket.readyState === 1) {
+            dgSocket.send(event.data);
+        }
+    });
+    mediaRecorder.start(250); // Send chunk every 250ms
 }
 
 function stopBroadcasting() {
     listening = false;
-    if (recognizer) recognizer.stop();
+    
+    // Stop Recorder
+    if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    mediaRecorder = null;
+
+    // Close Socket
+    if(dgSocket) dgSocket.close();
+    dgSocket = null;
+
+    // UI Reset
     ui.floorText.textContent = "Mic Off";
     ui.floorDot.className = "dot";
     ui.broadcastBtn.textContent = "Start Broadcasting";
     ui.broadcastBtn.className = "btn btn-green";
     ui.liveCaptionBar.textContent = "";
+
     if (inputCtx) inputCtx.close();
 }
 
