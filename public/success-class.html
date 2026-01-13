@@ -290,7 +290,7 @@
     /* Embed Mode Overrides */
     body.embed-mode .header { display: none !important; }
     body.embed-mode .modal-overlay { display: none !important; }
-    body.embed-mode .app-container { padding: 0; max-width: 100%; height: 100vh; display:flex; flexDirection:column; }
+    body.embed-mode .app-container { padding: 0; max-width: 100%; height: 100vh; display:flex; flex-direction:column; }
     body.embed-mode .tabs { margin-top: 10px; }
   </style>
 </head>
@@ -382,11 +382,11 @@
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
             <div>
                 <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Microphone</label>
-                <select id="micSelect" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;"></select>
+                <select id="micSelect" title="Select Microphone" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;"></select>
             </div>
             <div>
                 <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Language</label>
-                <select id="srcLang" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
+                <select id="srcLang" title="Select Source Language" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
                     <option value="en-US">English (US)</option>
                     <option value="es-ES">Spanish</option>
                     <option value="fr-FR">French</option>
