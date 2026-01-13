@@ -640,7 +640,11 @@ async function populateDevices() {
             if (d.kind === 'audioinput') ui.micSelect.appendChild(opt);
             if (d.kind === 'audiooutput') ui.speakerSelect.appendChild(opt);
         });
-    } catch(e) { console.error("Permission denied", e); }
+    } catch(e) { 
+        console.error("Device Enumeration Error", e);
+        // Don't alert here to avoid spamming on load, just log.
+        ui.micSelect.innerHTML = '<option value="default">Default Mic (Access Denied)</option>';
+    }
 }
 
 ui.speakerSelect.addEventListener('change', async () => {
@@ -766,9 +770,26 @@ async function startBroadcasting() {
     try {
         const deviceId = ui.micSelect.value;
         const constraints = { audio: deviceId === 'default' ? true : { deviceId: { exact: deviceId } } };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        initSourceViz(stream);
-    } catch(e) { return alert("Mic Error"); }
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            initSourceViz(stream);
+        } catch(innerErr) {
+            console.warn("Selected mic failed, trying default...", innerErr);
+            if (deviceId !== 'default') {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                initSourceViz(stream);
+                ui.toast.textContent = "Switched to Default Mic";
+                ui.toast.classList.add("show");
+                setTimeout(() => ui.toast.classList.remove("show"), 3000);
+            } else {
+                throw innerErr;
+            }
+        }
+    } catch(e) { 
+        console.error("Mic Access Error", e);
+        return alert(`Microphone Error: ${e.name}\n${e.message}\nPlease check browser permissions.`);
+    }
 
     recognizer = new SpeechRecognition();
     recognizer.continuous = true;

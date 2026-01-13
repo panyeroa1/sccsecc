@@ -5510,3 +5510,52 @@ Test result: PASS plus short notes: Components are stable and UX is improved.
 
 Known limitations or follow-up tasks: None
 
+
+------------------------------------------------------------
+
+Task ID: T-0072
+Title: Debug Mic Error in Success Class Translator
+Status: IN-PROGRESS
+Owner: Miles
+Related repo or service: success-class
+Branch: main
+Created: 2026-01-14 02:30
+Last updated: 2026-01-14 02:30
+
+START LOG
+
+Timestamp: 2026-01-14 02:30
+Current behavior:
+- User sees a generic "Mic Error" alert when trying to broadcast.
+- This obscures the actual cause (PermissionDenied, OverconstrainedError, NotFoundError, etc.).
+
+Plan and scope for this task:
+- Update `public/success-class.html` to display detailed error messages.
+- Improve `populateDevices` to alert user on failure.
+- Implement fallback logic: if specific device ID fails, try default device.
+
+Files or modules expected to change:
+- public/success-class.html
+
+Risks or things to watch out for:
+- Browser privacy restrictions might mask some errors, but `name` and `message` should be available.
+
+
+END LOG
+Timestamp: 2026-01-14 02:45
+Summary of what actually changed:
+- Updated `populateDevices` in `success-class.html` to log errors instead of silent failure, and set a fallback UI option.
+- Updated `startBroadcasting` in `success-class.html` to:
+  - Catch specific `getUserMedia` errors and alert with `e.name` and `e.message`.
+  - Try fetching the default microphone if a specific device ID fails (fallback logic).
+- Added a toast notification when switching to the default mic.
+
+Files actually modified:
+- public/success-class.html
+
+How it was tested:
+- Manual code review of the error handling logic.
+- Verifying the `alert` format includes `e.name` and `e.message`.
+
+Test result:
+- PASS
