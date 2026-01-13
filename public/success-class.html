@@ -646,6 +646,12 @@ window.enqueueTTS = function(text, lang) {
     processTTS();
 }
 
+// TEST BUTTON LOGIC
+document.getElementById('testTTSBtn').addEventListener('click', () => {
+    console.log("Testing TTS...");
+    window.enqueueTTS("This is a test of the audio system.", "en-US");
+});
+
 async function processTTS() {
     if (ttsBusy || !ttsQueue.length) return;
     ttsBusy = true;
@@ -667,14 +673,17 @@ async function processTTS() {
     try {
         const res = await fetch(CARTESIA_CFG.endpoint, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-API-Key": CARTESIA_KEY, "Cartesia-Version": CARTESIA_CFG.version },
+            headers: { 
+                "Content-Type": "application/json", 
+                "X-API-Key": CARTESIA_KEY, 
+                "Cartesia-Version": "2024-06-10" 
+            },
             body: JSON.stringify({
-                model_id: CARTESIA_CFG.model_id, 
+                model_id: "sonic-multilingual-2023-09-28", // More stable for general use
                 transcript: text,
-                language: isoLang, // Explicit language hint
-                voice: { mode: "id", id: "9c7e6604-52c6-424a-9f9f-2c4ad89f3bb9" },
-                output_format: CARTESIA_CFG.output_primary, 
-                generation_config: CARTESIA_CFG.generation_config
+                language: isoLang,
+                voice: { mode: "id", id: "a0e99841-438c-4a64-b67c-3fedd69cf9a1" }, // "Tim" - reliable male voice
+                output_format: { container: "wav", encoding: "pcm_f32le", sample_rate: 44100 }
             })
         });
 
@@ -684,26 +693,28 @@ async function processTTS() {
         }
 
         const blob = await res.blob();
-        ttsAudio.src = URL.createObjectURL(blob);
+        console.log("[TTS] Blob received:", blob.size);
         
-        // Play with error handling
+        const url = URL.createObjectURL(blob);
+        ttsAudio.src = url;
+        
         try {
             await ttsAudio.play();
         } catch(playErr) {
             console.error("Audio Playback Failed (Autoplay blocked?)", playErr);
-            // ui.toast.textContent = "Tap to enable audio";
-            // ui.toast.classList.add("show");
+            ui.toast.textContent = "Tap 'Test Audio' to enable";
+            ui.toast.classList.add("show");
         }
 
         await new Promise(r => { 
-            ttsAudio.onended = r; 
-            // Fallback timeout in case onended doesn't fire
-            setTimeout(r, (text.length * 100) + 2000); 
+            ttsAudio.onended = () => { URL.revokeObjectURL(url); r(); }; 
+            // Fallback timeout
+            setTimeout(r, (text.length * 100) + 5000); 
         });
 
     } catch(e) { 
         console.error("TTS Process Error", e);
-        ui.toast.textContent = "TTS Error: " + e.message.substring(0, 20);
+        ui.toast.textContent = "TTS Err: " + e.message.substring(0, 15);
         ui.toast.classList.add("show");
         setTimeout(() => ui.toast.classList.remove("show"), 3000);
     }

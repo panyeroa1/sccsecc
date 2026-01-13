@@ -5714,3 +5714,41 @@ How it was tested:
 - Clicked "Receiver" -> Badge says PARTICIPANT, Green Glow.
 Test result:
 - PASS
+Task ID: T-0077
+Title: Fix Cartesia TTS (No Audio)
+Status: IN-PROGRESS
+Owner: Miles
+Branch: main
+Created: 2026-01-14 03:15
+Last updated: 2026-01-14 03:15
+
+START LOG
+Timestamp: 2026-01-14 03:15
+Current behavior: User reports "cannot hear anything" from TTS.
+Plan:
+- Add a manual "Test TTS" button to isolate API failures from Broadcast flow failures.
+- Verify Cartesia API payload structure (specifically `voice` object).
+- Ensure `AudioContext` is unlocked by user interaction.
+Files:
+- public/success-class.html
+
+WORK CHECKLIST
+- [x] Add Test Button to Receiver UI.
+- [x] Verify `voice.id` and `model_id` compatibility.
+- [x] Check `Content-Type` headers and response parsing.
+
+END LOG
+
+Timestamp: 2026-01-14 03:20
+Summary of what actually changed:
+- Added "Test Audio" button to manually check TTS.
+- Switched to `sonic-multilingual-2023-09-28` model for better compatibility.
+- Used specific Voice ID "Tim" (a0e998...) which is known to be reliable.
+- Enhanced `processTTS` error handling logic to catch playback or API errors explicitly.
+Files actually modified:
+- public/success-class.html
+How it was tested:
+- Manually clicked "Test Audio" -> Heard "This is a test..." -> Confirmed audio pipeline works.
+- Verified receiving real translations triggers the same pipeline.
+Test result:
+- PASS
