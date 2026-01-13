@@ -433,6 +433,8 @@
       </label>
     </div>
 
+    <button id="testTTSBtn" class="btn" style="background:#333; border:1px solid #555; margin-bottom:16px;">🔊 Test TTS Audio</button>
+
     <div>
       <label class="card-label">Translation Language</label>
       <select id="tgtLang" title="Select translation language"></select>
@@ -809,24 +811,66 @@ async function processTTS() {
     
     ui.recvText.textContent = "Speaking...";
     ui.recvDot.className = "dot receiving";
-    if (recvCtx && recvCtx.state === 'suspended') recvCtx.resume();
+    if (recvCtx && recvCtx.state === 'suspended') {
+        try { await recvCtx.resume(); } catch(e) { console.warn("AudioContext resume failed", e); }
+    }
 
     const { text, lang } = ttsQueue.shift();
+    const isoLang = lang ? lang.split('-')[0] : 'en';
+    
+    console.log(`[TTS] Processing: "${text.substring(0, 30)}..." in ${isoLang}`);
+    
     try {
         const res = await fetch(CARTESIA_CFG.endpoint, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-API-Key": CARTESIA_KEY, "Cartesia-Version": CARTESIA_CFG.version },
+            headers: { 
+                "Content-Type": "application/json", 
+                "X-API-Key": CARTESIA_KEY, 
+                "Cartesia-Version": "2024-06-10" 
+            },
             body: JSON.stringify({
-                model_id: CARTESIA_CFG.model_id, transcript: text,
-                voice: { mode: "id", id: "9c7e6604-52c6-424a-9f9f-2c4ad89f3bb9" },
-                output_format: CARTESIA_CFG.output_primary, generation_config: CARTESIA_CFG.generation_config
+                model_id: "sonic-multilingual",
+                transcript: text,
+                language: isoLang,
+                voice: { mode: "id", id: "a0e99841-438c-4a64-b67c-3fedd69cf9a1" },
+                output_format: { container: "wav", encoding: "pcm_f32le", sample_rate: 44100 }
             })
         });
+        
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`API ${res.status}: ${errText.substring(0, 100)}`);
+        }
+        
         const blob = await res.blob();
-        ttsAudio.src = URL.createObjectURL(blob);
-        await ttsAudio.play();
-        await new Promise(r => { ttsAudio.onended = r; setTimeout(r, 10000); });
-    } catch(e) { console.error(e); }
+        console.log("[TTS] Blob received:", blob.size, "bytes");
+        
+        const url = URL.createObjectURL(blob);
+        ttsAudio.src = url;
+        
+        try {
+            await ttsAudio.play();
+            console.log("[TTS] Playing audio");
+        } catch(playErr) {
+            console.error("[TTS] Playback blocked:", playErr);
+            ui.toast.textContent = "Tap 'Test TTS' to enable audio";
+            ui.toast.style.background = "#f59e0b";
+            ui.toast.classList.add("show");
+            setTimeout(() => ui.toast.classList.remove("show"), 3000);
+        }
+        
+        await new Promise(r => { 
+            ttsAudio.onended = () => { URL.revokeObjectURL(url); r(); };
+            setTimeout(r, (text.length * 80) + 5000);
+        });
+        
+    } catch(e) { 
+        console.error("[TTS] Error:", e);
+        ui.toast.textContent = "TTS Error: " + (e.message || "Unknown").substring(0, 30);
+        ui.toast.style.background = "#ef4444";
+        ui.toast.classList.add("show");
+        setTimeout(() => ui.toast.classList.remove("show"), 3000);
+    }
     
     ui.recvText.textContent = "Receiver Idle";
     ui.recvDot.className = "dot active";
@@ -993,9 +1037,14 @@ function init() {
     
     populateDevices();
     initRecvViz();
+
+// Test TTS Button
+document.getElementById('testTTSBtn').addEventListener('click', () => {
+    console.log("[TTS] Test button clicked");
+    window.enqueueTTS("This is a test of the audio system. If you hear this, TTS is working.", "en-US");
+});
 }
 
 init();
 </script>
 </body>
-</html>
