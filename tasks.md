@@ -5679,3 +5679,38 @@ Plan:
 - Style with Eburon aesthetic.
 Files:
 - public/success-class.html
+Task ID: T-0076
+Title: Visual Distinction for Host vs Participant
+Status: IN-PROGRESS
+Owner: Miles
+Branch: main
+Created: 2026-01-14 03:05
+
+START LOG
+Timestamp: 2026-01-14 03:05
+Plan:
+- Add a "Role Badge" in the header.
+- Differentiate styles: Host (Orange/Gold), Participant (Blue/Teal).
+- Update `switchTab` to toggle these visual states.
+Files:
+- public/success-class.html
+
+WORK CHECKLIST
+- [x] Add CSS for role badges/themes.
+- [x] Add Badge Element to HTML.
+- [x] Update JS toggle logic.
+
+END LOG
+
+Timestamp: 2026-01-14 03:10
+Summary of what actually changed:
+- Added `.role-badge` CSS class with variants `.role-host` (Orange) and `.role-part` (Green).
+- Added static `<span id="roleBadge">` in header.
+- JavaScript `switchTab()` now updates badge text and `.app-container` box-shadow.
+Files actually modified:
+- public/success-class.html
+How it was tested:
+- Clicked "Source" -> Badge says HOST, Orange Glow.
+- Clicked "Receiver" -> Badge says PARTICIPANT, Green Glow.
+Test result:
+- PASS
