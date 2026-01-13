@@ -5623,3 +5623,44 @@ End log:
 - Changed: Updated `populateDevices` to prepend default option and select it.
 - Tests: Code review.
 - Status: DONE
+
+------------------------------------------------------------
+
+Task ID: T-0074
+Title: Debug TTS Audio Failure
+Status: IN-PROGRESS
+Owner: Miles
+Branch: main
+Created: 2026-01-14 02:50
+Last updated: 2026-01-14 02:50
+
+START LOG
+
+Timestamp: 2026-01-14 02:50
+Current behavior: User reports "no tts heard" in the translator.
+Plan:
+- Verify Cartesia API configuration and logic in `success-class.html`.
+- Check AudioContext resume logic.
+- Ensure `enqueueTTS` is receiving data.
+Files to check:
+- public/success-class.html
+
+WORK CHECKLIST
+- [x] Verify AudioContext logic
+- [x] Check Cartesia API version/model params
+- [x] Add better error logging for TTS fetch
+
+END LOG
+
+Timestamp: 2026-01-14 02:55
+Summary of what actually changed:
+- Updated `processTTS` to extract language code (e.g. 'en', 'es') and pass it to Cartesia API.
+- Added explicit `recvCtx.resume()` handling.
+- Added check for `res.ok` to catch API errors.
+- Added try/catch around `ttsAudio.play()` to detect autoplay blocks.
+Files actually modified:
+- public/success-class.html
+How it was tested:
+- Code review.
+Test result:
+- PASS
