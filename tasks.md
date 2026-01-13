@@ -5664,3 +5664,18 @@ How it was tested:
 - Code review.
 Test result:
 - PASS
+Task ID: T-0075
+Title: Implement Supabase Email Auth
+Status: TODO
+Owner: Miles
+Branch: main
+Created: 2026-01-14 03:00
+
+START LOG
+Timestamp: 2026-01-14 03:00
+Plan:
+- Replace Welcome Modal with Auth Modal (Login/Signup).
+- Implement Supabase Email/Password logic.
+- Style with Eburon aesthetic.
+Files:
+- public/success-class.html
