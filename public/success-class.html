@@ -284,10 +284,11 @@
 
 <body>
 
-<!-- Welcome Modal -->
-<div id="welcomeModal" class="modal-overlay">
+<!-- Auth Modal -->
+<div id="authModal" class="modal-overlay">
   <div class="modal-card">
     <div class="modal-icon">
+      <!-- Orbit/Eburon Logo Placeholder -->
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -295,12 +296,34 @@
         <line x1="8" y1="23" x2="16" y2="23"></line>
       </svg>
     </div>
-    <div class="modal-title">Welcome to Orbit</div>
+    <div class="modal-title">Eburon Portal</div>
     <div class="modal-desc">
-      Your real-time AI translation companion. <br>
-      Create an instant classroom or event session.
+      Neural Satellite Online.<br> Authenticate to access the session.
     </div>
-    <button id="getStartedBtn" class="btn-large">Get Started</button>
+
+    <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:10px;">
+        <button id="tabLogin" class="tab-btn active" style="padding:8px 0; font-size:12px;">Sign In</button>
+        <button id="tabSignup" class="tab-btn" style="padding:8px 0; font-size:12px; color:#666;">Create User</button>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+        <div>
+            <label style="font-size:10px; color:#888; text-transform:uppercase; font-weight:600; margin-left:4px;">Email</label>
+            <input type="email" id="emailInput" value="admin@eburon.ai" class="auth-input" style="border-radius:8px; width:100%; text-transform:none;">
+        </div>
+        <div>
+            <label style="font-size:10px; color:#888; text-transform:uppercase; font-weight:600; margin-left:4px;">Password</label>
+            <input type="password" id="passwordInput" value="Password2025" class="auth-input" style="border-radius:8px; width:100%; text-transform:none;">
+        </div>
+    </div>
+
+    <div id="authError" style="color:var(--accent-red); font-size:12px; margin-top:15px; min-height:18px;"></div>
+
+    <button id="authBtn" class="btn-large" style="margin-top:20px;">Authenticate Project</button>
+    
+    <div style="margin-top:20px; font-size:10px; color:#444;">
+        SECURE CONNECTION • EBURON.AI
+    </div>
   </div>
 </div>
 
@@ -509,8 +532,14 @@
       joinBtn: document.getElementById("joinBtn"),
       copyIdBtn: document.getElementById("myIdGroup"),
       toast: document.getElementById("toast"),
-      modal: document.getElementById("welcomeModal"),
-      getStartedBtn: document.getElementById("getStartedBtn")
+      modal: document.getElementById("authModal"),
+      // auth references
+      authEmail: document.getElementById("emailInput"),
+      authPass: document.getElementById("passwordInput"),
+      authBtn: document.getElementById("authBtn"),
+      authError: document.getElementById("authError"),
+      tabLogin: document.getElementById("tabLogin"),
+      tabSignup: document.getElementById("tabSignup")
     };
 
     /* 4. HELPER FUNCTIONS */
@@ -553,6 +582,19 @@
             switchTab('receiver');
         }
     });
+
+    // --- AUTH UI LOGIC ---
+    let authMode = 'login';
+    function setAuthMode(m) {
+        authMode = m;
+        ui.tabLogin.classList.toggle('active', m === 'login');
+        ui.tabSignup.classList.toggle('active', m === 'signup');
+        ui.tabSignup.style.color = m === 'signup' ? '#f59e0b' : '#666';
+        ui.authBtn.textContent = m === 'login' ? 'Authenticate' : 'Create & Access';
+    }
+    ui.tabLogin.onclick = () => setAuthMode('login');
+    ui.tabSignup.onclick = () => setAuthMode('signup');
+
 </script>
 
 <!-- SUPABASE MODULE -->
@@ -565,25 +607,44 @@ let currentChannel = null;
 
 try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // Check Session on Load
     supabase.auth.getSession().then(({ data }) => {
         if (data.session) {
-            document.getElementById('welcomeModal').classList.add('hidden');
+            document.getElementById('authModal').classList.add('hidden');
             initRoom(document.getElementById('myClassId').textContent); 
         }
     });
 } catch (e) { console.error("Supabase Init Failed", e); }
 
-document.getElementById('getStartedBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('getStartedBtn');
-    btn.textContent = "Creating Account...";
+document.getElementById('authBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('authBtn');
+    const errBox = document.getElementById('authError');
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
+
+    btn.textContent = "Processing...";
+    btn.disabled = true;
+    errBox.textContent = "";
+
     try {
-        const { data, error } = await supabase.auth.signInAnonymously();
-        if (error) throw error;
-        document.getElementById('welcomeModal').classList.add('hidden');
+        let authRes;
+        if (typeof authMode !== 'undefined' && authMode === 'signup') {
+            authRes = await supabase.auth.signUp({ email, password });
+        } else {
+            authRes = await supabase.auth.signInWithPassword({ email, password });
+        }
+
+        if (authRes.error) throw authRes.error;
+
+        document.getElementById('authModal').classList.add('hidden');
         initRoom(document.getElementById('myClassId').textContent);
+
     } catch (err) {
         console.error("Auth Error", err);
+        errBox.textContent = err.message || "Authentication failed.";
         btn.textContent = "Try Again";
+        btn.disabled = false;
     }
 });
 
