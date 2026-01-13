@@ -87,7 +87,7 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
 
       try {
         // Step 1: Translate via Orbit Cloud
-        finalTranslation = await translateWithOrbit(segment.source_text, targetLang.name);
+        finalTranslation = await translateWithOrbit(segment.source_text, targetLang.code);
 
         // Update log with translated text immediately
         setLogs(prev => prev.map(l => l.id === logId ? { ...l, translation: finalTranslation } : l));
@@ -246,8 +246,8 @@ export function AgentPanel({ meetingId, onSpeakingStateChange, isTranscriptionEn
                 value={ttsProvider}
                 onChange={(e) => setTtsProvider(e.target.value as any)}
               >
-                <option value="orbit">Agent</option>
-                <option value="gemini">Orbit Engine</option>
+                <option value="orbit">Orbit Beta (Cartesia)</option>
+                <option value="gemini">Orbit Pro (Gemini TTS)</option>
               </select>
               <div className={styles.agentSelectIcon}>
                 <ChevronDown size={14} />

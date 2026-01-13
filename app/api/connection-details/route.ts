@@ -80,6 +80,7 @@ function createParticipantToken(userInfo: AccessTokenOptions, roomName: string) 
     canPublishData: true,
     canSubscribe: true,
     roomAdmin: true,
+    canUpdateOwnMetadata: true,
   };
   at.addGrant(grant);
   return at.toJwt();

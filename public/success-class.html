@@ -479,6 +479,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const isEmbed = urlParams.get('embed') === 'true';
     const embedRoom = urlParams.get('roomName');
+    window.IS_EMBED = isEmbed;
     
     if (isEmbed) {
         document.body.classList.add('embed-mode');
@@ -546,8 +547,10 @@
     btnSource.addEventListener('click', () => switchTab('source'));
     btnReceiver.addEventListener('click', () => switchTab('receiver'));
 
-    // Init state (Source by default, Receiver if embed mode)
-    if (window.AUTO_JOIN_ROOM) {
+    // Init state (Receiver by default in embed mode)
+    if (window.IS_EMBED) {
+        switchTab('receiver');
+    } else if (window.AUTO_JOIN_ROOM) {
         switchTab('receiver');
     } else {
         switchTab('source');
@@ -778,8 +781,8 @@ const CARTESIA_KEY = "sk_car_JmdGRhBt1ocwhqmrxy2gaa";
 const CARTESIA_CFG = {
   endpoint: "https://api.cartesia.ai/tts/bytes",
   version: "2025-04-16",
-  model_id: "sonic-3-latest",
-  voice_id: "9c7e6604-52c6-424a-9f9f-2c4ad89f3bb9",
+  model_id: "sonic-3",
+  voice_id: "dda33d93-9f12-4a59-806e-a98279ebf050",
   output_primary: { container: "wav", encoding: "pcm_f32le", sample_rate: 44100 },
   output_fallback:{ container: "wav", encoding: "pcm_s16le", sample_rate: 44100 },
   generation_config: { speed: 1.0, volume: 1.0 }
@@ -825,15 +828,16 @@ async function processTTS() {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json", 
-                "X-API-Key": CARTESIA_KEY, 
-                "Cartesia-Version": "2024-06-10" 
+                "Authorization": `Bearer ${CARTESIA_KEY}`, 
+                "Cartesia-Version": CARTESIA_CFG.version
             },
             body: JSON.stringify({
-                model_id: "sonic-multilingual",
+                model_id: CARTESIA_CFG.model_id,
                 transcript: text,
                 language: isoLang,
-                voice: { mode: "id", id: "a0e99841-438c-4a64-b67c-3fedd69cf9a1" },
-                output_format: { container: "wav", encoding: "pcm_f32le", sample_rate: 44100 }
+                voice: { mode: "id", id: CARTESIA_CFG.voice_id },
+                output_format: CARTESIA_CFG.output_primary,
+                generation_config: CARTESIA_CFG.generation_config
             })
         });
         

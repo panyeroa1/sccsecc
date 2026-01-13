@@ -609,6 +609,8 @@ function RoomInner(props: {
     : undefined;
 
   const [isListening, setIsListening] = React.useState(false);
+  const { localParticipant } = useLocalParticipant();
+  const remoteParticipants = useRemoteParticipants();
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -618,22 +620,25 @@ function RoomInner(props: {
 
   // Sync translation config to room metadata for agents
   React.useEffect(() => {
-    if (localParticipant.permissions?.canPublish /* only if host/speaker to avoid conflicts */ || hostId === user?.id) {
-      const metadata = {
-        source_language: sourceLanguage,
-        target_language: targetLanguage,
-        updated_at: Date.now()
-      };
-      lkRoom.localParticipant.setMetadata(JSON.stringify({
-        ...JSON.parse(lkRoom.localParticipant.metadata || '{}'),
-        translation_config: metadata
-      }));
-    }
-  }, [sourceLanguage, targetLanguage, lkRoom, hostId, user?.id]);
+    const canUpdateMetadata = localParticipant.permissions?.canUpdateMetadata ?? false;
+    const isAuthorized = canUpdateMetadata && (localParticipant.permissions?.canPublish || hostId === user?.id);
+    if (!isAuthorized) return;
+
+    const metadata = {
+      source_language: sourceLanguage,
+      target_language: targetLanguage,
+      updated_at: Date.now()
+    };
+
+    localParticipant.setMetadata(JSON.stringify({
+      ...JSON.parse(localParticipant.metadata || '{}'),
+      translation_config: metadata
+    })).catch((err) => {
+      console.warn('LocalParticipant metadata update failed:', err);
+    });
+  }, [sourceLanguage, targetLanguage, hostId, user?.id, localParticipant]);
   const [hearRawAudio, setHearRawAudio] = React.useState(false);
   const { playClick, playToggle } = useSound();
-  const { localParticipant } = useLocalParticipant();
-  const remoteParticipants = useRemoteParticipants();
   const [aiAgentOnline, setAiAgentOnline] = React.useState(false);
 
   React.useEffect(() => {
@@ -648,8 +653,8 @@ function RoomInner(props: {
     lastClickTime: { current: null as number | null }
   }), []);
 
-  const [sttEngine, setSttEngine] = React.useState<STTEngine>('eburon-ink');
-  const [translationEngine, setTranslationEngine] = React.useState<TranslationEngine>('eburon-gemini');
+  const [sttEngine, setSttEngine] = React.useState<STTEngine>('eburon-nova');
+  const [translationEngine, setTranslationEngine] = React.useState<TranslationEngine>('eburon-google');
 
   const inkSTT = useSpeechStream({ model: 'ink-whisper', language: sourceLanguage === 'multi' ? 'en' : sourceLanguage });
   const deepgramSTT = useVoiceSocket({ model: 'nova-2', language: sourceLanguage === 'multi' ? 'en' : sourceLanguage });

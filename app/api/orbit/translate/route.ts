@@ -9,6 +9,32 @@ export async function POST(request: Request) {
       return new NextResponse('Missing text or targetLang', { status: 400 });
     }
 
+    const normalizeGoogleLang = (lang: string) => {
+      const trimmed = lang.trim();
+      const lower = trimmed.toLowerCase();
+      if (lower === 'zh-hans') return 'zh-CN';
+      if (lower === 'zh-hant') return 'zh-TW';
+      if (lower.startsWith('zh-')) return trimmed;
+      return lower.split('-')[0];
+    };
+
+    // 0. Prefer Google Translate (no key required)
+    try {
+      const googleTarget = normalizeGoogleLang(targetLang);
+      const googleUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(googleTarget)}&dt=t&q=${encodeURIComponent(text)}`;
+      const googleRes = await fetch(googleUrl);
+      if (googleRes.ok) {
+        const data = await googleRes.json();
+        const translation = Array.isArray(data?.[0]) ? data[0].map((x: any) => x[0]).join('') : '';
+        if (translation) return NextResponse.json({ translation });
+      } else {
+        const err = await googleRes.text();
+        console.warn(`[Orbit] Google translation failed (${googleRes.status}): ${err}. Falling back...`);
+      }
+    } catch (e) {
+      console.error('[Orbit] Google translate error:', e);
+    }
+
     // 0. Try Remote Ollama (User Preference)
     const ollamaUrl = process.env.OLLAMA_BASE_URL;
     if (ollamaUrl) {
