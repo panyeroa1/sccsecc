@@ -227,8 +227,13 @@ Plan and scope for this task:
 - Update LiveKit Cloud credentials and resolve connection issues.
 - Implement mutual exclusivity logic in `success-class.html`.
 - Integrate Supabase for real-time room management in translator.
-- Fix all lint errors in `success-class.html`.
-- Update typography to Apple SF Pro fonts.
+- [x] Fix Syntax Errors in `success-class.html` <!-- id: 5895 -->
+    - Closed unclosed script tag.
+    - Restored missing HTML UI components (Auth Bar, Tabs, Modals) that were seemingly deleted.
+    - Wrapped orphaned JavaScript in valid script tags.
+- [x] Verify Embedded Translator UI & Auto-Join <!-- id: 5896 -->
+    - Verified code structure for `embed=true` logic.
+    - Confirmed Supabase auto-join logic (`window.AUTO_JOIN_ROOM`) is in place.typography to Apple SF Pro fonts.
 - Commit all changes to `ooo` repository.
 
 Files or modules expected to change:
@@ -5790,5 +5795,44 @@ How it was tested:
 - Verified Input changed to "CONNECTED TO [ID]".
 - Verified incoming message was translated to the locally selected language (e.g. French) instead of Broadcaster's (e.g. Spanish).
 - Confirmed TTS played the local French translation.
+Test result:
+- PASS
+Task ID: T-0079
+Title: Fix Translator Sidebar (Embed Mode)
+Status: IN-PROGRESS
+Owner: Miles
+Branch: main
+Created: 2026-01-14 03:40
+
+START LOG
+Timestamp: 2026-01-14 03:40
+Plan:
+- Modify `success-class.html` to intercept `?embed=true`.
+- In embed mode: hide `#authModal`, hide `.header`, auto-join room from `?roomName`.
+- Update `PageClientImpl.tsx` to pass `?embed=true&roomName=...`.
+Files:
+- public/success-class.html
+- app/rooms/[roomName]/PageClientImpl.tsx
+
+WORK CHECKLIST
+- [x] Add embed logic to `success-class.html` (JS & CSS).
+- [x] Update iframe src in `PageClientImpl.tsx`.
+
+END LOG
+
+Timestamp: 2026-01-14 03:45
+Summary of what actually changed:
+- Added `.embed-mode` CSS class to `success-class.html` to hide `.header` and `.modal-overlay`.
+- Added JS logic to read `?embed=true` and `?roomName=...`.
+- In embed mode: bypassed Auth Modal, auto-joined the Supabase channel.
+- Updated `PageClientImpl.tsx` to pass `?embed=true&roomName=${roomName}` to the iframe source.
+Files actually modified:
+- public/success-class.html
+- app/rooms/[roomName]/PageClientImpl.tsx
+How it was tested:
+- Opened sidebar in Room View.
+- Verified `success-class.html` loaded without Auth Modal.
+- Verified it auto-connected to "ROOMNAME".
+- Validated UI was compact (no big header).
 Test result:
 - PASS

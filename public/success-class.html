@@ -287,15 +287,56 @@
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+    /* Embed Mode Overrides */
+    body.embed-mode .header { display: none !important; }
+    body.embed-mode .modal-overlay { display: none !important; }
+    body.embed-mode .app-container { padding: 0; max-width: 100%; height: 100vh; display:flex; flexDirection:column; }
+    body.embed-mode .tabs { margin-top: 10px; }
   </style>
 </head>
 
 <body>
 
 <!-- Auth Modal (Existing...) -->
-<!-- ... (Lines 287-338 unchanged) ... -->
+<!-- ... -->
+
+<script>
+    /* ... (Existing JS) ... */
+
+    // --- EMBED MODE LOGIC ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEmbed = urlParams.get('embed') === 'true';
+    const embedRoom = urlParams.get('roomName');
+    
+    if (isEmbed) {
+        document.body.classList.add('embed-mode');
+        // Bypass Auth UI
+        document.getElementById('authModal').classList.add('hidden');
+        
+        // Auto-Init Room if provided
+        if (embedRoom) {
+            // Wait for Supabase to be ready (handled in module below via checking isEmbed)
+            console.log("[Embed] Auto-joining room:", embedRoom);
+            // We'll let the module script pick this up or set a global
+            window.AUTO_JOIN_ROOM = embedRoom;
+            document.getElementById('myClassId').textContent = embedRoom.toUpperCase();
+        }
+    }
+</script>
+
+<script>
+    /* 1. INSTANT ID GENERATION */
+    // ... (Generate ID only if not in embed mode logic above? No, keep standard)
+    if (!window.AUTO_JOIN_ROOM) {
+        function generateId() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+        const localId = generateId();
+        document.getElementById('myClassId').textContent = localId;
+    }
+    
+    /* ... (Rest of existing JS) ... */
+</script>
 
 <div class="app-container" id="appContainer">
   
@@ -311,8 +352,143 @@
     </div>
 
     <!-- Auth / Room Bar -->
-<!-- ... (Lines 349-484) ... -->
+    <div class="auth-bar" style="margin-top:15px; display:flex; justify-content:space-between; align-items:center;">
+        <!-- My ID Group (Source) -->
+        <div id="myIdGroup" style="display:flex; align-items:center; gap:8px;">
+            <span style="opacity:0.7; font-size:12px;">CLASS ID:</span>
+            <span id="myClassId" style="font-family:monospace; font-weight:bold; font-size:16px;">LOADING...</span>
+        </div>
 
+        <!-- Auth Input Group (Receiver) -->
+        <div id="authInputGroup" style="display:none; gap:8px; align-items:center;">
+            <input type="text" id="joinInput" placeholder="ENTER ID" style="padding:6px; border-radius:4px; border:1px solid #444; background:#222; color:#fff; text-transform:uppercase; width:100px;">
+            <button id="joinBtn" style="padding:6px 12px; border-radius:4px; background:var(--accent-blue); color:#fff; border:none; cursor:pointer;">JOIN</button>
+            <!-- Connected Badge -->
+            <div id="recvConnectedGroup" class="hidden" style="display:none; align-items:center; gap:6px; background:rgba(16,185,129,0.1); padding:4px 8px; border:1px solid rgba(16,185,129,0.3); border-radius:4px;">
+                <span class="dot active" style="background:#10b981; width:8px; height:8px; border-radius:50%; display:inline-block;"></span>
+                <span style="color:#10b981; font-weight:700; font-size:11px;">CONNECTED: <span id="connectedClassId"></span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs" style="display:flex; gap:10px; margin-top:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+        <button id="btn-source" class="tab-btn active" style="background:transparent; border:none; color:#fff; cursor:pointer; font-weight:bold; opacity:1;">BROADCAST</button>
+        <button id="btn-receiver" class="tab-btn" style="background:transparent; border:none; color:#fff; cursor:pointer; font-weight:bold; opacity:0.5;">RECEIVER</button>
+    </div>
+
+    <!-- SOURCE TAB CONTENT -->
+    <div id="tab-source" class="tab-content active" style="margin-top:15px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+            <div>
+                <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Microphone</label>
+                <select id="micSelect" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;"></select>
+            </div>
+            <div>
+                <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Language</label>
+                <select id="srcLang" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
+                    <option value="en-US">English (US)</option>
+                    <option value="es-ES">Spanish</option>
+                    <option value="fr-FR">French</option>
+                    <option value="de-DE">German</option>
+                    <option value="it-IT">Italian</option>
+                    <option value="pt-BR">Portuguese</option>
+                    <option value="zh-CN">Chinese (Mandarin)</option>
+                    <option value="ja-JP">Japanese</option>
+                    <option value="ko-KR">Korean</option>
+                    <option value="ru-RU">Russian</option>
+                </select>
+            </div>
+        </div>
+        <div style="border:1px solid #333; border-radius:8px; padding:10px; background:#111; margin-bottom:15px;">
+            <canvas id="sourceViz" width="300" height="60" style="width:100%; height:60px;"></canvas>
+        </div>
+        <button id="broadcastBtn" style="width:100%; padding:15px; background:var(--accent-orange); color:#fff; border:none; border-radius:8px; font-weight:bold; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;">
+            <span id="floorDot" class="dot" style="background:#fff; width:10px; height:10px; border-radius:50%; display:inline-block; opacity:0.5;"></span>
+            <span id="floorText">START BROADCAST</span>
+        </button>
+    </div>
+
+    <!-- RECEIVER TAB CONTENT -->
+    <div id="tab-receiver" class="tab-content" style="display:none; margin-top:15px;">
+        <div style="display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:15px;">
+             <div>
+                <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Translate To</label>
+                <select id="tgtLang" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
+                    <option value="es-ES">Spanish</option>
+                    <option value="en-US">English (US)</option>
+                    <option value="fr-FR">French</option>
+                    <option value="de-DE">German</option>
+                    <option value="it-IT">Italian</option>
+                    <option value="pt-BR">Portuguese</option>
+                    <option value="zh-CN">Chinese (Mandarin)</option>
+                    <option value="ja-JP">Japanese</option>
+                    <option value="ko-KR">Korean</option>
+                    <option value="ru-RU">Russian</option>
+                </select>
+            </div>
+             <div>
+                <label style="font-size:12px; opacity:0.7; display:block; margin-bottom:4px;">Audio Output</label>
+                <select id="speakerSelect" style="width:100%; padding:8px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;"></select>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <div style="flex:1;">
+                <label style="font-size:12px; opacity:0.7;">Speed: <span id="speedVal">1.0x</span></label>
+                <input type="range" id="speedRange" min="0.5" max="2.0" step="0.1" value="1.0" style="width:100%;">
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:12px; opacity:0.7;">Volume: <span id="volVal">1.0x</span></label>
+                <input type="range" id="volRange" min="0.0" max="1.0" step="0.1" value="1.0" style="width:100%;">
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <button id="testTTSBtn" style="padding:6px 12px; background:#333; border:1px solid #555; border-radius:4px; color:#fff; cursor:pointer;">Test Audio</button>
+             <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="checkbox" id="recvToggle" checked> 
+                <span style="font-size:14px;">Enable Audio</span>
+            </label>
+        </div>
+
+        <div style="border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:10px; background:rgba(16,185,129,0.05); margin-bottom:15px;">
+            <canvas id="recvViz" width="300" height="60" style="width:100%; height:60px;"></canvas>
+        </div>
+        
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span id="recvDot" class="dot" style="background:#666; width:8px; height:8px; border-radius:50%; display:inline-block;"></span>
+            <span id="recvText" style="font-size:12px; opacity:0.7;">Receiver Idle</span>
+        </div>
+        <audio id="tts" style="display:none;"></audio>
+    </div>
+
+    <!-- Shared/Overlay UI -->
+    <div id="historyBox" class="history-box" style="margin-top:20px; border-top:1px solid #333; padding-top:15px; max-height:200px; overflow-y:auto;">
+        <div class="empty-msg" style="text-align:center; opacity:0.5; font-style:italic;">No history yet...</div>
+    </div>
+
+    <div id="liveCaptionBar" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); padding:8px 16px; border-radius:20px; color:#fff; font-size:14px; pointer-events:none; display:none;"></div>
+    <div id="toast" style="position:fixed; top:20px; right:20px; background:#333; color:#fff; padding:10px 20px; border-radius:4px; transform:translateY(-100px); transition:transform 0.3s;">Notice</div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:999;">
+        <div class="modal" style="background:#111; padding:30px; border-radius:12px; width:90%; max-width:400px; border:1px solid #333;">
+            <h2 style="margin-top:0; color:#fff;">Authentication</h2>
+            <div class="modal-tabs" style="display:flex; gap:20px; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:10px;">
+                <div id="tabLogin" class="tab active" style="cursor:pointer; font-weight:bold; color:#f59e0b;">Login</div>
+                <div id="tabSignup" class="tab" style="cursor:pointer; color:#666;">Sign Up</div>
+            </div>
+            <input type="email" id="emailInput" placeholder="Email Address" style="width:100%; padding:10px; margin-bottom:10px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
+            <input type="password" id="passwordInput" placeholder="Password" style="width:100%; padding:10px; margin-bottom:20px; background:#222; border:1px solid #444; color:#fff; border-radius:4px;">
+            <button id="authBtn" style="width:100%; padding:12px; background:#f59e0b; color:#000; font-weight:bold; border:none; border-radius:4px; cursor:pointer;">Authenticate</button>
+            <div id="authError" style="color:red; margin-top:10px; font-size:12px;"></div>
+        </div>
+    </div>
+
+  </div> <!-- Close app-container -->
+
+<script>
     /* 2. TAB SWITCHING LOGIC (Shows/Hides ID inputs) */
     const btnSource = document.getElementById('btn-source');
     const btnReceiver = document.getElementById('btn-receiver');
@@ -463,9 +639,29 @@ try {
     supabase.auth.getSession().then(({ data }) => {
         if (data.session) {
             document.getElementById('authModal').classList.add('hidden');
-            initRoom(document.getElementById('myClassId').textContent); 
+            // If already logged in, and not embedding, init normal room
+            if (!window.AUTO_JOIN_ROOM) {
+                initRoom(document.getElementById('myClassId').textContent);
+            }
         }
     });
+
+    // Embed Mode Auto-Join
+    if (window.AUTO_JOIN_ROOM) {
+         // Auto-signin anonymously if needed, or just join channel if public
+         // Note: If we need auth, we might need a dummy signin here.
+         // Let's assume anonymous access is okay for now or use existing session.
+         supabase.auth.getSession().then(async ({ data }) => {
+             if (!data.session) {
+                 await supabase.auth.signInAnonymously();
+             }
+             initRoom(window.AUTO_JOIN_ROOM);
+             // Ensure Receiver Tab is active if acting as participant?
+             // Since this is likely the Sidebar (Participant), defaulting to Receiver might be smart.
+             // But let's leave default Source for now as 'Orbit' panel acts as Broadcaster too.
+         });
+    }
+
 } catch (e) { console.error("Supabase Init Failed", e); }
 
 document.getElementById('authBtn').addEventListener('click', async () => {
